@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { filesAPI } from '../../services/api';
 import Button from '../ui/Button';
 import Icon from '../AppIcon';
 
@@ -19,13 +20,12 @@ const FileUploadModal = ({
   const fileInputRef = useRef(null);
 
   const allowedTypes = [
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
     'application/pdf', 
     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
-    'application/octet-stream' // For DWG files
+    'text/plain'
   ];
 
   const formatFileSize = (bytes) => {
@@ -56,13 +56,13 @@ const FileUploadModal = ({
       errors.push('File size must be less than 50MB');
     }
     
-    // Check file type
+    // Check file type - align with server validation
     const ext = file.name.toLowerCase().split('.').pop();
-    const isAllowedType = allowedTypes.includes(file.type) || 
-                         ['dwg', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext);
+    const serverAllowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'];
+    const isAllowedType = allowedTypes.includes(file.type) || serverAllowedExtensions.includes(ext);
     
     if (!isAllowedType) {
-      errors.push('File type not supported');
+      errors.push(`File type '${ext}' not supported. Allowed: ${serverAllowedExtensions.join(', ')}`);
     }
     
     return errors;
@@ -136,31 +136,35 @@ const FileUploadModal = ({
         const formData = new FormData();
         formData.append('files', fileItem.file);
         formData.append('projectId', projectId);
-        formData.append('milestoneId', milestoneId);
-        formData.append('uploadedBy', '17cdd89c-327d-4bc0-ac65-183330c13f35'); // Alice Cooper
-        formData.append('visibility', 'client');
+        formData.append('uploadedByUserId', 'user_001'); // TODO: Get from auth context
+        formData.append('visibility', 'Client');
+        
+        if (milestoneId) {
+          formData.append('milestoneId', milestoneId);
+        }
 
         // Update progress
         setUploadProgress(prev => ({ ...prev, [fileItem.id]: 0 }));
 
-        const response = await fetch('/api/milestone-files/upload', {
-          method: 'POST',
-          body: formData,
+        console.log('📤 Uploading file via modal:', {
+          fileName: fileItem.file.name,
+          size: fileItem.file.size,
+          projectId,
+          milestoneId: milestoneId || 'none'
         });
 
-        if (!response.ok) {
-          throw new Error(`Upload failed for ${fileItem.name}`);
-        }
-
-        const result = await response.json();
+        // Use the correct API service
+        const response = await filesAPI.upload(formData);
         
         // Update progress to 100%
         setUploadProgress(prev => ({ ...prev, [fileItem.id]: 100 }));
         
         // Store the uploaded file data for optimistic updates
-        if (result.success && result.data) {
-          uploadedFiles.push(...result.data);
+        if (response.data && response.data.uploadedFiles) {
+          uploadedFiles.push(...response.data.uploadedFiles);
         }
+        
+        console.log('✅ File uploaded successfully via modal:', response.data);
         
         // Simulate progress animation
         for (let i = 10; i <= 100; i += 10) {
@@ -181,8 +185,8 @@ const FileUploadModal = ({
       onClose();
       
     } catch (error) {
-      console.error('Upload error:', error);
-      setErrors([error.message]);
+      console.error('❌ Upload error via modal:', error);
+      setErrors([error.message || 'Upload failed']);
       setUploading(false);
     }
   };
