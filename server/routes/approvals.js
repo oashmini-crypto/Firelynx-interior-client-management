@@ -1,9 +1,13 @@
-// Approval API Routes with File Picker Integration
+// Approval API Routes with File Upload Integration
 
 const express = require('express');
 const crypto = require('crypto');
+const multer = require('multer');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs').promises;
 const router = express.Router();
-const { db, approvalPackets, approvalItems, fileAssets, users, documentCounters } = require('../database');
+const { db, approvalPackets, approvalItems, approvalFiles, fileAssets, users, documentCounters } = require('../database');
 const { eq, desc, and, inArray } = require('drizzle-orm');
 
 // Helper function to generate approval numbers
@@ -42,6 +46,290 @@ async function generateApprovalNumber() {
     throw new Error('Failed to generate approval number');
   }
 }
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = 'uploads/';
+    await fs.mkdir(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'approval-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+    files: 10 // Max 10 files per upload
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv'
+    ];
+    
+    const allowedExtensions = ['.dwg', '.dxf', '.skp', '.3ds', '.max'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed'), false);
+    }
+  }
+});
+
+// Helper function to generate preview for images
+async function generatePreview(filePath, fileName, fileType) {
+  try {
+    const ext = path.extname(fileName).toLowerCase();
+    
+    // For images - create thumbnail
+    if (['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(fileType)) {
+      const previewDir = 'uploads/previews/';
+      await fs.mkdir(previewDir, { recursive: true });
+      
+      const previewFileName = 'preview_' + fileName.replace(/\.[^/.]+$/, '.jpg');
+      const previewPath = path.join(previewDir, previewFileName);
+      
+      await sharp(filePath)
+        .resize(400, 300, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({ quality: 85 })
+        .toFile(previewPath);
+      
+      return `/uploads/previews/${previewFileName}`;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error generating preview:', error);
+    return null;
+  }
+}
+
+// Helper function to get file size
+async function getFileSize(filePath) {
+  try {
+    const stats = await fs.stat(filePath);
+    return stats.size;
+  } catch (error) {
+    console.error('Error getting file size:', error);
+    return 0;
+  }
+}
+
+// === APPROVAL FILE ROUTES (Must come before parameterized approval routes) ===
+
+// GET /api/approvals/:id/files - Get files for an approval packet
+router.get('/:id/files', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { visibility, include } = req.query;
+    
+    let whereClause = eq(approvalFiles.approvalId, id);
+    
+    // Handle visibility filter (client portal filter)
+    if (visibility) {
+      whereClause = and(
+        eq(approvalFiles.approvalId, id),
+        eq(approvalFiles.visibility, visibility)
+      );
+    }
+    
+    // Filter by status if include parameter is provided
+    if (include) {
+      const allowedStatuses = include.split(',').map(s => s.trim());
+      whereClause = visibility 
+        ? and(whereClause, inArray(approvalFiles.status, allowedStatuses))
+        : and(eq(approvalFiles.approvalId, id), inArray(approvalFiles.status, allowedStatuses));
+    }
+    
+    const files = await db
+      .select({
+        id: approvalFiles.id,
+        projectId: approvalFiles.projectId,
+        approvalId: approvalFiles.approvalId,
+        fileName: approvalFiles.fileName,
+        fileType: approvalFiles.fileType,
+        size: approvalFiles.size,
+        storageUrl: approvalFiles.storageUrl,
+        previewUrl: approvalFiles.previewUrl,
+        visibility: approvalFiles.visibility,
+        status: approvalFiles.status,
+        createdAt: approvalFiles.createdAt,
+        uploadedBy: approvalFiles.uploadedBy,
+        uploaderName: users.name,
+        uploaderEmail: users.email
+      })
+      .from(approvalFiles)
+      .leftJoin(users, eq(approvalFiles.uploadedBy, users.id))
+      .where(whereClause)
+      .orderBy(desc(approvalFiles.createdAt));
+    
+    res.json({
+      success: true,
+      data: files,
+      count: files.length
+    });
+  } catch (error) {
+    console.error('Error fetching approval files:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch approval files'
+    });
+  }
+});
+
+// POST /api/approvals/:id/files - Upload files to an approval packet
+router.post('/:id/files', upload.array('files', 10), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No files provided'
+      });
+    }
+    
+    const {
+      projectId,
+      uploadedBy,
+      visibility = 'client'
+    } = req.body;
+    
+    if (!projectId || !uploadedBy) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: projectId, uploadedBy'
+      });
+    }
+    
+    if (!['client', 'internal'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid visibility. Must be "client" or "internal"'
+      });
+    }
+    
+    const uploadedFiles = [];
+    
+    for (const file of req.files) {
+      try {
+        // Generate preview if applicable
+        const previewUrl = await generatePreview(file.path, file.originalname, file.mimetype);
+        
+        // Get actual file size
+        const fileSize = await getFileSize(file.path);
+        
+        // Create approval file record
+        const approvalFile = await db
+          .insert(approvalFiles)
+          .values({
+            projectId,
+            approvalId: id,
+            uploadedBy,
+            fileName: file.originalname,
+            fileType: file.mimetype,
+            size: fileSize,
+            storageUrl: `/uploads/${file.filename}`,
+            previewUrl,
+            visibility,
+            status: 'pending' // Default to pending for client approval
+          })
+          .returning();
+        
+        uploadedFiles.push({
+          ...approvalFile[0],
+          uploadProgress: 100 // Upload complete
+        });
+      } catch (fileError) {
+        console.error(`Error processing file ${file.originalname}:`, fileError);
+        // Continue with other files
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      data: uploadedFiles,
+      count: uploadedFiles.length,
+      message: `${uploadedFiles.length} file(s) uploaded successfully`
+    });
+  } catch (error) {
+    console.error('Error uploading approval files:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload files'
+    });
+  }
+});
+
+// PUT /api/approvals/:id/files/:fileId/status - Update file status
+router.put('/:id/files/:fileId/status', async (req, res) => {
+  try {
+    const { id, fileId } = req.params;
+    const { status } = req.body;
+    
+    // Validate status
+    if (!['pending', 'accepted', 'declined'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status. Must be pending, accepted, or declined'
+      });
+    }
+    
+    // Check if file exists and belongs to the approval
+    const existingFile = await db
+      .select()
+      .from(approvalFiles)
+      .where(and(
+        eq(approvalFiles.id, fileId),
+        eq(approvalFiles.approvalId, id)
+      ))
+      .limit(1);
+    
+    if (existingFile.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'File not found or does not belong to this approval'
+      });
+    }
+    
+    // Update file status
+    const updatedFile = await db
+      .update(approvalFiles)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(approvalFiles.id, fileId))
+      .returning();
+    
+    res.json({
+      success: true,
+      data: updatedFile[0],
+      message: `File ${status} successfully`
+    });
+  } catch (error) {
+    console.error('Error updating approval file status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update file status'
+    });
+  }
+});
 
 // GET /api/approvals/project/:projectId - Get approvals for project
 router.get('/project/:projectId', async (req, res) => {
