@@ -182,9 +182,16 @@ class ApiClient {
   }
 
   async updateApproval(id, data) {
-    const response = await this.request(`/approvals/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+    // Map frontend data to backend expected format
+    const requestData = {
+      decision: data.status, // Map 'status' to 'decision'
+      comment: data.clientComment,
+      signatureName: data.signatureName
+    };
+    
+    const response = await this.request(`/approvals/${id}/decision`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
     });
     return response;
   }
