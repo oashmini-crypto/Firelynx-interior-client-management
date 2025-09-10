@@ -69,7 +69,7 @@ async function getFileSize(filePath) {
 router.get('/:milestoneId', async (req, res) => {
   try {
     const { milestoneId } = req.params;
-    const { visibility } = req.query;
+    const { visibility, include } = req.query;
     
     let whereClause = eq(milestoneFiles.milestoneId, milestoneId);
     
@@ -79,6 +79,15 @@ router.get('/:milestoneId', async (req, res) => {
         eq(milestoneFiles.milestoneId, milestoneId),
         eq(milestoneFiles.visibility, visibility)
       );
+    }
+    
+    // Filter by status if include parameter is provided
+    if (include) {
+      const allowedStatuses = include.split(',').map(s => s.trim());
+      const { inArray } = require('drizzle-orm');
+      whereClause = visibility 
+        ? and(whereClause, inArray(milestoneFiles.status, allowedStatuses))
+        : and(eq(milestoneFiles.milestoneId, milestoneId), inArray(milestoneFiles.status, allowedStatuses));
     }
     
     const files = await db
