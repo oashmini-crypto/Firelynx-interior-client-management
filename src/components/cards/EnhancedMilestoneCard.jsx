@@ -72,7 +72,7 @@ const EnhancedMilestoneCard = ({
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/milestone-files/${milestone.id}`);
+      const response = await fetch(`/api/milestones/${milestone.id}/files`);
       if (response.ok) {
         const result = await response.json();
         setFiles(result.data || []);
@@ -117,7 +117,7 @@ const EnhancedMilestoneCard = ({
 
   const handleFileDelete = async (file) => {
     try {
-      const response = await fetch(`/api/milestone-files/${file.id}`, {
+      const response = await fetch(`/api/milestones/${milestone.id}/files/${file.id}`, {
         method: 'DELETE'
       });
       
@@ -146,7 +146,7 @@ const EnhancedMilestoneCard = ({
 
   const handleFileStatusUpdate = async (file, newStatus) => {
     try {
-      const response = await fetch(`/api/milestone-files/${file.id}/status`, {
+      const response = await fetch(`/api/milestones/${milestone.id}/files/${file.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

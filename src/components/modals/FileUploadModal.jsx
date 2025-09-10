@@ -136,10 +136,14 @@ const FileUploadModal = ({
         const formData = new FormData();
         formData.append('files', fileItem.file);
         formData.append('projectId', projectId);
-        formData.append('uploadedByUserId', 'd9eb3fb5-4d74-4d15-b65e-801d0bd0eadf'); // Alice Cooper ID
-        formData.append('visibility', 'Client');
+        formData.append('visibility', milestoneId ? 'client' : 'Client'); // Use lowercase for milestone API
         
         if (milestoneId) {
+          // For milestone uploads - use correct field name for milestone API
+          formData.append('uploadedBy', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
+        } else {
+          // For generic uploads - use file_assets field name
+          formData.append('uploadedByUserId', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
           formData.append('milestoneId', milestoneId);
         }
 
@@ -153,8 +157,22 @@ const FileUploadModal = ({
           milestoneId: milestoneId || 'none'
         });
 
-        // Use the correct API service
-        const response = await filesAPI.upload(formData);
+        // Use milestone-specific API if milestoneId provided, otherwise generic files API
+        let response;
+        if (milestoneId) {
+          // Use milestone-specific upload endpoint
+          response = await fetch(`/api/milestones/${milestoneId}/files`, {
+            method: 'POST',
+            body: formData
+          });
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
+          }
+          response = { data: await response.json() };
+        } else {
+          // Use generic files API for non-milestone uploads
+          response = await filesAPI.upload(formData);
+        }
         
         // Update progress to 100%
         setUploadProgress(prev => ({ ...prev, [fileItem.id]: 100 }));
