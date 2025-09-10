@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Variation Request {{variationNumber}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+    }
+    .variation-box {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border: 1px solid #eee;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+    }
+    .company-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #4C6FFF;
+      padding-bottom: 20px;
+    }
+    .company-logo {
+      max-width: 80px;
+      max-height: 80px;
+    }
+    .company-info h1 {
+      margin: 0;
+      color: #4C6FFF;
+      font-size: 28px;
+    }
+    .company-info p {
+      margin: 5px 0;
+      color: #64748B;
+      font-size: 14px;
+    }
+    .variation-title {
+      text-align: right;
+      font-size: 32px;
+      margin: 0;
+      color: #0F172A;
+      font-weight: bold;
+    }
+    .client-details {
+      margin-bottom: 25px;
+    }
+    .client-details strong {
+      font-size: 16px;
+      display: block;
+      color: #0F172A;
+      margin-bottom: 8px;
+    }
+    .client-details div {
+      line-height: 1.6;
+      color: #64748B;
+    }
+    .variation-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      background: #F8FAFC;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .variation-meta div {
+      color: #0F172A;
+      font-weight: 500;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-approved { background: #DCFCE7; color: #166534; }
+    .status-pending { background: #FEF3C7; color: #D97706; }
+    .status-rejected { background: #FEE2E2; color: #DC2626; }
+    .status-under-review { background: #DBEAFE; color: #1E40AF; }
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+    }
+    .section-title {
+      font-weight: 600;
+      color: #0F172A;
+      margin-bottom: 10px;
+      font-size: 16px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #E2E8F0;
+      padding-bottom: 5px;
+    }
+    .section-content {
+      color: #64748B;
+      line-height: 1.6;
+    }
+    .cost-breakdown {
+      background: #F8FAFC;
+      border: 2px solid #4C6FFF;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .cost-breakdown h3 {
+      color: #4C6FFF;
+      margin: 0 0 15px 0;
+      font-size: 18px;
+    }
+    .cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    .cost-table th {
+      background: #4C6FFF;
+      color: white;
+      padding: 10px;
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .cost-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #0F172A;
+    }
+    .cost-table .amount {
+      text-align: right;
+      font-weight: 600;
+    }
+    .cost-total {
+      background: #0F172A;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .aed-amount {
+      color: #059669;
+      font-weight: 600;
+    }
+    .work-types, .categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tag {
+      background: #E0E7FF;
+      color: #3730A3;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #E2E8F0;
+      text-align: center;
+      color: #64748B;
+      font-size: 12px;
+    }
+    .signature {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .signature-block {
+      text-align: center;
+      width: 200px;
+    }
+    .signature-line {
+      border-top: 1px solid #000;
+      margin-bottom: 5px;
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .variation-box { box-shadow: none; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="variation-box">
+    <!-- Company Header -->
+    <div class="company-header">
+      <div class="company-info">
+        {{#if companyLogo}}
+        <img src="{{companyLogo}}" alt="{{companyName}} Logo" class="company-logo">
+        {{/if}}
+        <h1>{{companyName}}</h1>
+        <p>{{companyAddress}}</p>
+        <p>{{companyPhone}} • {{companyEmail}}</p>
+      </div>
+      <h1 class="variation-title">VARIATION REQUEST</h1>
+    </div>
+
+    <!-- Client Details -->
+    <div class="client-details">
+      <strong>Client:</strong>
+      <div>
+        <div>{{clientName}}</div>
+        {{#if clientCompany}}<div>{{clientCompany}}</div>{{/if}}
+        {{#if clientPhone}}<div>{{clientPhone}}</div>{{/if}}
+        {{#if clientEmail}}<div>{{clientEmail}}</div>{{/if}}
+        {{#if clientAddress}}<div>{{clientAddress}}</div>{{/if}}
+      </div>
+    </div>
+
+    <!-- Variation Meta -->
+    <div class="variation-meta">
+      <div>
+        <strong>Variation #:</strong> {{variationNumber}}<br>
+        <strong>Date:</strong> {{requestDate}}<br>
+        <strong>Requestor:</strong> {{changeRequestor}}
+      </div>
+      <div>
+        <strong>Status:</strong> 
+        <span class="status-badge status-{{statusClass}}">{{status}}</span><br>
+        <strong>Project:</strong> {{projectTitle}}<br>
+        {{#if changeReference}}<strong>Reference:</strong> {{changeReference}}{{/if}}
+      </div>
+    </div>
+
+    <!-- Change Details -->
+    <div class="section">
+      <div class="section-title">Change Area</div>
+      <div class="section-content">{{changeArea}}</div>
+    </div>
+
+    {{#if workTypes}}
+    <div class="section">
+      <div class="section-title">Work Types</div>
+      <div class="work-types">
+        {{#each workTypes}}
+        <span class="tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if categories}}
+    <div class="section">
+      <div class="section-title">Categories</div>
+      <div class="categories">
+        {{#each categories}}
+        <span class="tag">{{this}}</span>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    <div class="section">
+      <div class="section-title">Change Description</div>
+      <div class="section-content">{{changeDescription}}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Reason for Change</div>
+      <div class="section-content">{{reasonDescription}}</div>
+    </div>
+
+    {{#if technicalChanges}}
+    <div class="section">
+      <div class="section-title">Technical Changes</div>
+      <div class="section-content">{{technicalChanges}}</div>
+    </div>
+    {{/if}}
+
+    <!-- Cost Breakdown -->
+    {{#if hasDetailedCosts}}
+    <div class="cost-breakdown">
+      <h3>Detailed Cost Breakdown</h3>
+      
+      {{#if materialCosts}}
+      <div class="section-title">Material Costs</div>
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Quantity</th>
+            <th>Unit Rate</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each materialCosts}}
+          <tr>
+            <td>{{description}}</td>
+            <td>{{quantity}}</td>
+            <td class="amount">{{unitRate}}</td>
+            <td class="amount aed-amount">{{total}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+
+      {{#if laborCosts}}
+      <div class="section-title">Labor Costs</div>
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Hours</th>
+            <th>Hourly Rate</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each laborCosts}}
+          <tr>
+            <td>{{description}}</td>
+            <td>{{hours}}</td>
+            <td class="amount">{{hourlyRate}}</td>
+            <td class="amount aed-amount">{{total}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+
+      {{#if additionalCosts}}
+      <div class="section-title">Additional Costs</div>
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each additionalCosts}}
+          <tr>
+            <td>{{category}}</td>
+            <td>{{description}}</td>
+            <td class="amount aed-amount">{{amount}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{/if}}
+
+      <table class="cost-table">
+        <tr class="cost-total">
+          <td colspan="3"><strong>TOTAL VARIATION IMPACT:</strong></td>
+          <td class="amount"><strong class="aed-amount">AED {{totalCost}}</strong></td>
+        </tr>
+      </table>
+    </div>
+    {{else}}
+    {{#if resourcesAndCosts}}
+    <div class="section">
+      <div class="section-title">Resources & Costs</div>
+      <div class="section-content">{{resourcesAndCosts}}</div>
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <!-- Signatures -->
+    <div class="signature">
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div><strong>Client Approval</strong></div>
+        <div>Date: _____________</div>
+      </div>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <div><strong>Project Manager</strong></div>
+        <div>Date: _____________</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      {{footerText}}
+    </div>
+  </div>
+</body>
+</html>
