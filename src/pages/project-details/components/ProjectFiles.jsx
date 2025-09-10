@@ -1,20 +1,48 @@
-import React, { useState } from 'react';
-import { getFilesByProjectId, getMilestonesByProjectId, entities } from '../../../data/store';
+import React, { useState, useEffect } from 'react';
+import { filesAPI, milestonesAPI } from '../../../services/api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import Icon from '../../../components/AppIcon';
 
 const ProjectFiles = ({ projectId }) => {
-  const [files, setFiles] = useState(() => getFilesByProjectId(projectId));
+  const [files, setFiles] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [uploadFormData, setUploadFormData] = useState({
-    filename: '',
     visibility: 'Client',
     milestoneId: ''
   });
 
-  const milestones = getMilestonesByProjectId(projectId);
+  // Fetch files and milestones on component mount
+  useEffect(() => {
+    fetchData();
+  }, [projectId]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [filesResponse, milestonesResponse] = await Promise.all([
+        filesAPI.getByProject(projectId),
+        milestonesAPI.getAll(projectId)
+      ]);
+      
+      setFiles(filesResponse.data.data || []);
+      setMilestones(milestonesResponse.data.data || []);
+      console.log('✅ Files and milestones loaded:', {
+        files: filesResponse.data.data?.length || 0,
+        milestones: milestonesResponse.data.data?.length || 0
+      });
+    } catch (error) {
+      console.error('❌ Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const milestoneOptions = [
     { value: '', label: 'General Project Files' },
     ...milestones.map(milestone => ({
@@ -44,56 +72,96 @@ const ProjectFiles = ({ projectId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleFileUpload = () => {
-    if (!uploadFormData.filename) {
-      alert('Please enter a filename');
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a file to upload');
       return;
     }
 
-    // Simulate file upload
-    const newFile = {
-      id: `file_${Date.now()}`,
-      projectId,
-      milestoneId: uploadFormData.milestoneId || null,
-      uploadedByUserId: 'user_001',
-      filename: uploadFormData.filename,
-      url: '#', // In real app, this would be the actual file URL
-      contentType: 'application/pdf', // Default for demo
-      size: Math.floor(Math.random() * 5000000) + 1000000, // Random size between 1-5MB
-      visibility: uploadFormData.visibility,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
+    try {
+      setUploading(true);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('files', selectedFile);
+      formData.append('projectId', projectId);
+      formData.append('uploadedByUserId', 'user_001'); // TODO: Get from auth context
+      formData.append('visibility', uploadFormData.visibility);
+      
+      if (uploadFormData.milestoneId) {
+        formData.append('milestoneId', uploadFormData.milestoneId);
+      }
 
-    // Add to store
-    entities.fileAssets.push(newFile);
-    setFiles(getFilesByProjectId(projectId));
-    setIsUploadModalOpen(false);
-    setUploadFormData({
-      filename: '',
-      visibility: 'Client',
-      milestoneId: ''
-    });
+      console.log('📤 Uploading file:', {
+        fileName: selectedFile.name,
+        size: selectedFile.size,
+        visibility: uploadFormData.visibility,
+        milestoneId: uploadFormData.milestoneId || 'none'
+      });
 
-    console.log('File uploaded successfully');
+      // Upload file using real API
+      const response = await filesAPI.upload(formData);
+      
+      console.log('✅ File uploaded successfully:', response.data);
+      
+      // Refresh files list to show the new file
+      await fetchData();
+      
+      // Reset form and close modal
+      setIsUploadModalOpen(false);
+      setSelectedFile(null);
+      setUploadFormData({
+        visibility: 'Client',
+        milestoneId: ''
+      });
+      
+    } catch (error) {
+      console.error('❌ Error uploading file:', error);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleDeleteFile = (fileId) => {
+  const handleDeleteFile = async (fileId) => {
     if (window.confirm('Are you sure you want to delete this file?')) {
-      const index = entities.fileAssets.findIndex(file => file.id === fileId);
-      if (index !== -1) {
-        entities.fileAssets.splice(index, 1);
-        setFiles(getFilesByProjectId(projectId));
-        console.log('File deleted successfully');
+      try {
+        console.log('🗑️ Deleting file:', fileId);
+        await filesAPI.delete(fileId);
+        console.log('✅ File deleted successfully');
+        
+        // Refresh files list
+        await fetchData();
+      } catch (error) {
+        console.error('❌ Error deleting file:', error);
+        alert('Failed to delete file. Please try again.');
       }
     }
   };
 
-  const handleVisibilityChange = (fileId, newVisibility) => {
-    const fileIndex = entities.fileAssets.findIndex(file => file.id === fileId);
-    if (fileIndex !== -1) {
-      entities.fileAssets[fileIndex].visibility = newVisibility;
-      setFiles(getFilesByProjectId(projectId));
-      console.log('File visibility updated successfully');
+  const handleVisibilityChange = async (fileId, newVisibility) => {
+    try {
+      console.log('👁️ Updating file visibility:', { fileId, newVisibility });
+      await filesAPI.updateVisibility(fileId, newVisibility);
+      console.log('✅ File visibility updated successfully');
+      
+      // Refresh files list
+      await fetchData();
+    } catch (error) {
+      console.error('❌ Error updating file visibility:', error);
+      alert('Failed to update file visibility. Please try again.');
+    }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      console.log('📁 File selected:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
     }
   };
 
@@ -129,7 +197,12 @@ const ProjectFiles = ({ projectId }) => {
 
       {/* Files by Category */}
       <div className="space-y-8">
-        {Object.keys(groupedFiles).length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <Icon name="Loader" size={48} className="mx-auto text-text-secondary mb-4 animate-spin" />
+            <p className="text-text-secondary">Loading files and milestones...</p>
+          </div>
+        ) : Object.keys(groupedFiles).length === 0 ? (
           <div className="text-center py-12 bg-muted rounded-lg">
             <Icon name="FolderOpen" size={48} className="mx-auto text-text-secondary mb-4" />
             <h4 className="font-medium text-primary mb-2">No Files Uploaded</h4>
@@ -231,32 +304,40 @@ const ProjectFiles = ({ projectId }) => {
                   File <span className="text-red-500">*</span>
                 </label>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center bg-muted/50">
-                  <Icon name="Upload" size={32} className="mx-auto text-text-secondary mb-2" />
-                  <p className="text-sm text-text-secondary mb-2">Drag & drop files here or click to browse</p>
-                  <Input
-                    type="file"
-                    className="hidden"
-                    id="file-upload"
-                    multiple={false}
-                  />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <Button variant="outline" size="sm" as="span">
-                      Choose File
-                    </Button>
-                  </label>
+                  {selectedFile ? (
+                    <div className="space-y-3">
+                      <Icon name="CheckCircle" size={32} className="mx-auto text-green-600" />
+                      <div>
+                        <p className="font-medium text-primary">{selectedFile.name}</p>
+                        <p className="text-sm text-text-secondary">{formatFileSize(selectedFile.size)}</p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedFile(null)}
+                      >
+                        Choose Different File
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <Icon name="Upload" size={32} className="mx-auto text-text-secondary mb-2" />
+                      <p className="text-sm text-text-secondary mb-2">Drag & drop files here or click to browse</p>
+                      <Input
+                        type="file"
+                        className="hidden"
+                        id="file-upload"
+                        multiple={false}
+                        onChange={handleFileSelect}
+                      />
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <Button variant="outline" size="sm" as="span">
+                          Choose File
+                        </Button>
+                      </label>
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              {/* Filename Override */}
-              <div>
-                <label className="block text-sm font-medium text-primary mb-2">
-                  Filename <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  value={uploadFormData.filename}
-                  onChange={(e) => setUploadFormData(prev => ({ ...prev, filename: e.target.value }))}
-                  placeholder="Enter filename (e.g., floor_plans_v2.pdf)"
-                />
               </div>
 
               <div>
@@ -290,11 +371,29 @@ const ProjectFiles = ({ projectId }) => {
 
             <div className="p-6 border-t border-border">
               <div className="flex justify-end space-x-3">
-                <Button variant="outline" onClick={() => setIsUploadModalOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsUploadModalOpen(false);
+                    setSelectedFile(null);
+                    setUploadFormData({ visibility: 'Client', milestoneId: '' });
+                  }}
+                  disabled={uploading}
+                >
                   Cancel
                 </Button>
-                <Button onClick={handleFileUpload} disabled={!uploadFormData.filename}>
-                  Upload File
+                <Button 
+                  onClick={handleFileUpload} 
+                  disabled={!selectedFile || uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <Icon name="Loader" size={16} className="animate-spin mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    'Upload File'
+                  )}
                 </Button>
               </div>
             </div>

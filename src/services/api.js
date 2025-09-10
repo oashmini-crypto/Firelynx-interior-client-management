@@ -221,12 +221,15 @@ export const filesAPI = {
   
   // Upload files
   upload: (formData) => {
-    return api.post('/files', formData, {
+    return api.post('/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
   },
+  
+  // Update file visibility
+  updateVisibility: (fileId, visibility) => api.put(`/files/${fileId}/visibility`, { visibility }),
   
   // Delete file
   delete: (id) => api.delete(`/files/${id}`),
