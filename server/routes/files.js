@@ -181,10 +181,14 @@ router.post('/upload', async (req, res) => {
         // Get actual file size
         const fileSize = await getFileSize(file.path);
         
+        // Generate unique ID for the file asset
+        const fileId = require('crypto').randomUUID();
+        
         // Create file asset record
         const fileAsset = await db
           .insert(fileAssets)
           .values({
+            id: fileId,
             projectId,
             milestoneId: milestoneId || null,
             ticketId: ticketId || null,

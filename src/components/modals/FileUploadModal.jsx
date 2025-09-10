@@ -20,7 +20,7 @@ const FileUploadModal = ({
   const fileInputRef = useRef(null);
 
   const allowedTypes = [
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif',
     'application/pdf', 
     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -58,7 +58,7 @@ const FileUploadModal = ({
     
     // Check file type - align with server validation
     const ext = file.name.toLowerCase().split('.').pop();
-    const serverAllowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'];
+    const serverAllowedExtensions = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'];
     const isAllowedType = allowedTypes.includes(file.type) || serverAllowedExtensions.includes(ext);
     
     if (!isAllowedType) {
