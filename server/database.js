@@ -99,7 +99,7 @@ const milestones = pgTable('milestones', {
 });
 
 const fileAssets = pgTable('file_assets', {
-  id: varchar('id', { length: 50 }).primaryKey(),
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   milestoneId: varchar('milestone_id', { length: 50 }).references(() => milestones.id),
   ticketId: varchar('ticket_id', { length: 50 }),

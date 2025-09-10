@@ -1,0 +1,200 @@
+🔧 Master “Fix FireLynx” Prompt (No-Code)
+
+Role: You are a Staff Full-Stack Engineer (React 18 + Vite + Redux Toolkit + Tailwind + Express + PostgreSQL + Drizzle + Multer + Sharp + PDFKit). Your task is to diagnose and fix the issues below with small, surgical code changes, then prove the fixes with logs/tests and short videos/GIFs if possible. Work directly in the repo, cite files/lines, and commit in small atomic PR-sized chunks.
+
+Ground truth
+
+App: FireLynx (Manager + Client portals).
+
+Known endpoints (examples):
+
+Approvals: GET /api/approvals/project/:projectId, POST /api/approvals, POST /api/approvals/:id/send, POST /api/approvals/:id/decision
+
+PDFs: GET /api/pdf/invoice/:invoiceId, GET /api/pdf/variation/:variationId
+
+Milestones/files: GET /api/milestones/project/:id, GET /api/milestones/:id/files, POST /api/milestones/:id/files
+
+Tickets: GET /api/tickets/priorities, GET /api/tickets/categories, POST /api/tickets, PUT /api/tickets/:id, POST /api/tickets/:id/assign
+
+DB tables include: clients, users, projects, projectTeam, milestones, fileAssets, milestoneFiles, variationFiles, invoices, variationRequests, approvalPackets, approvalItems, tickets, documentCounters.
+
+A) Bugs to Reproduce & Fix
+
+Client approval action fails (404)
+
+Frontend console shows:
+
+API Error [/approvals/:id]: 404 Not Found
+at ApiClient.updateApproval → handleApprovalDecision
+
+
+Goal: Ensure client uses POST /api/approvals/:id/decision (not PUT /approvals/:id), and server route exists and authorizes client users on that project.
+
+Deliverables:
+
+Update FE API method (e.g., decideApproval) and all call sites.
+
+Verify with toast + refreshed list.
+
+Commit: fix(approvals): use decision endpoint and wire client actions
+
+“Review & Approve” button missing for new approvals
+
+New approvals appear as Pending and show no action button in Client portal.
+
+Goal: Ensure after creating an approval, Manager triggers POST /api/approvals/:id/send and FE shows the button when status is Sent and due date not passed.
+
+Deliverables:
+
+Add/confirm “Send” action in Manager flow (and optional auto-send toggle).
+
+FE condition: render the green “Review & Approve” when status is Sent.
+
+Commit: feat(approvals): send workflow + client CTA visibility
+
+PDF downloads fail (500) for invoices/variations
+
+Network: GET /api/pdf/invoice/:id and /api/pdf/variation/:id → 500.
+
+Likely causes: missing branding/logo/font path, unsafe undefined access in PDF data, or bad stream error handling.
+
+Goal: Make PDFs robust.
+
+Deliverables:
+
+Add structured try/catch with reason in server logs (but keep response safe).
+
+Validate assets exist; add fallbacks (default logo, standard font).
+
+Guard all nullable fields; ensure proper DB joins; reject if project/user not authorized.
+
+Stream headers set correctly; end stream on error.
+
+Commit: fix(pdf): robust generation, assets fallback, safe errors
+
+Add quick integration test that asserts 200 + non-zero PDF size.
+
+Milestone files not visible in Client timeline
+
+Manager uploads files to milestones; Client timeline doesn’t show them.
+
+Goal: Ensure GET /api/milestones/:id/files (or project aggregation) returns Client-visible assets via a proper join between milestoneFiles and fileAssets, filtered by visibility='client'.
+
+Also: prevent duplicates and ensure previews (jpg/webp/avif) exist.
+
+Deliverables:
+
+Backend: fix query + visibility filter.
+
+Frontend: render images/webp/avif/pdf with proper preview components; show “Internal” only in Manager.
+
+Add hash-based dedupe on upload (e.g., content hash + projectId + milestoneId unique). If duplicate detected, reuse record.
+
+Commit: fix(milestones): client-visible join + file dedupe + previews
+
+Client ticket creation shows “No options available” and Save does nothing
+
+The modal’s Priority/Category selects are empty; POST never fires.
+
+Goal: Expose GET /api/tickets/priorities & GET /api/tickets/categories to client scope; ensure POST /api/tickets allows client to create with projectId they can access.
+
+Deliverables:
+
+Backend: RBAC adjustments; ensure responses return arrays (e.g., [{id:'high', label:'High'}]).
+
+Frontend: populate selects; disable “Create” until valid; show result toast and refresh.
+
+Manager dashboard: keep ability to create, but primary flow is client-initiated, and Manager assigns via /api/tickets/:id/assign.
+
+Commit: feat(tickets): client create + manager assign + select data wired
+
+SVG <path> Attribute Error in Console
+
+Error:
+
+Error: <path> attribute d: Expected arc flag ('0' or '1'), "... 1A7.962 7.962 0 714 12H0c0 3.042 ..."
+
+
+This is an invalid SVG Arc command where the path contains A with two arc flags that aren’t single-digit 0|1 (looks like ... 0 714 12 ... instead of ... 0 1 4 ...), or a missing space that turned 1 A into 1A.
+
+Goal: Find the offending icon/path (likely a custom icon or mis-minified path; Lucide usually OK).
+
+Deliverables:
+
+Search for d=".*A7\.962" or the nearby segment; fix the path so arc command is A rx ry x-axis-rotation large-arc-flag sweep-flag x y with both flags either 0 or 1.
+
+Add a lint or runtime warn utility to log invalid SVG paths in dev.
+
+Commit: fix(svg): correct arc flags & add dev guard
+
+B) Implementation Checklist
+
+Routing & API
+
+Verify routes exist and match FE usage:
+
+POST /api/approvals/:id/send
+
+POST /api/approvals/:id/decision
+
+GET /api/pdf/invoice/:id, GET /api/pdf/variation/:id
+
+GET /api/tickets/priorities, GET /api/tickets/categories, POST /api/tickets, POST /api/tickets/:id/assign
+
+Add concise request/response logs (masked) to debug 500s; add request-ID correlation.
+
+RBAC
+
+Client users can: view their projects, view client-visible files, create tickets, make approval decisions.
+
+Manager users: create/send approvals, assign tickets, upload internal/client files.
+
+Data & Dedupe
+
+Upload pipeline: compute file hash, reject exact duplicates per milestone/project; store thumbnails/previews (Sharp).
+
+Visibility defaults sensible (e.g., Manager uploads default to Internal unless explicitly toggled to Client).
+
+UI/UX
+
+“Review & Approve” shows only when status=Sent and due date ≥ today.
+
+Ticket modal loads options; submit disabled until valid; success/error toasts.
+
+Milestone file grid shows image/pdf icons, graceful fallbacks.
+
+PDF Resilience
+
+Fallback logo (embedded asset) and font; ensure safe null-checks on invoice/variation fields; tested on sample data.
+
+Tests
+
+Add minimal integration tests for: approvals decision, client ticket create, milestone files visibility, and invoice PDF 200.
+
+Docs
+
+Update docs/KNOWN_ISSUES.md with root causes and fixes.
+
+Update docs/ONBOARDING.md for “Send approval” step.
+
+C) What to Produce
+
+Code changes with file/line citations and short commit messages, grouped by the six issues above.
+
+Before/after evidence: screenshots or short GIFs of client approvals, milestone file visibility, ticket creation, and successful PDF downloads.
+
+Logs showing previous 404/500 replaced by 200s, and the SVG error gone.
+
+Postman (or Thunder) collection with working calls for the fixed endpoints.
+
+A short CHANGES.md summarizing what was fixed and how to verify.
+
+Start now. Ask only blocking questions at the very end if something cannot be verified from the codebase.
+
+(Optional) Repo Pointers the AI should search for
+
+Frontend: src/api.js, src/pages/**/Approvals*/, EnhancedApprovals.jsx, EnhancedVariations.jsx, EnhancedInvoices.jsx, timeline/milestone components, ticket modal code.
+
+Backend: routes/approvals*.js, routes/pdf*.js, routes/tickets*.js, routes/milestones*.js, middleware/auth*.js, services/pdf*.js, Drizzle schema for fileAssets, milestoneFiles, approval*, tickets, documentCounters.
+
+Any custom SVG/icon where the path includes A commands (search for d=".*A and the fragment A7.962).
