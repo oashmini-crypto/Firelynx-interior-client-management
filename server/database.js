@@ -266,7 +266,7 @@ const brandingSettings = pgTable('branding_settings', {
 // Auto-numbering counters table
 const documentCounters = pgTable('document_counters', {
   id: serial('id').primaryKey(),
-  year: integer('year').notNull(),
+  year: integer('year').notNull().unique(),
   invoiceCounter: integer('invoice_counter').default(0),
   variationCounter: integer('variation_counter').default(0),
   approvalCounter: integer('approval_counter').default(0),

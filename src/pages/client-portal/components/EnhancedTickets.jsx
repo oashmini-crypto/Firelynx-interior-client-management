@@ -14,10 +14,10 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
   
   // New ticket form state
   const [newTicket, setNewTicket] = useState({
-    title: '',
+    subject: '',
     description: '',
     priority: 'Medium',
-    category: 'General',
+    category: 'Support',
     attachments: []
   });
 
@@ -25,7 +25,7 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
   const filteredAndSortedTickets = React.useMemo(() => {
     let filtered = tickets.filter(ticket => {
       const matchesSearch = 
-        ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ticket.title || ticket.subject)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ticket.ticketId?.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -75,16 +75,17 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
       if (onCreateTicket) {
         await onCreateTicket({
           ...newTicket,
-          projectId
+          projectId,
+          requesterUserId: 'client-user' // TODO: Get actual client user ID
         });
       }
       
       // Reset form
       setNewTicket({
-        title: '',
+        subject: '',
         description: '',
         priority: 'Medium',
-        category: 'General',
+        category: 'Support',
         attachments: []
       });
       setShowNewTicketForm(false);
@@ -186,12 +187,12 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
             <form onSubmit={handleCreateTicket} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title *
+                  Subject *
                 </label>
                 <Input
                   type="text"
-                  value={newTicket.title}
-                  onChange={(e) => setNewTicket(prev => ({ ...prev, title: e.target.value }))}
+                  value={newTicket.subject}
+                  onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
                   placeholder="Brief description of the issue"
                   required
                 />
@@ -209,6 +210,7 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
+                    <option value="Critical">Critical</option>
                   </Select>
                 </div>
 
@@ -220,12 +222,14 @@ const EnhancedTickets = ({ tickets, loading, onCreateTicket, projectId }) => {
                     value={newTicket.category}
                     onChange={(value) => setNewTicket(prev => ({ ...prev, category: value }))}
                   >
-                    <option value="General">General Support</option>
+                    <option value="Support">General Support</option>
                     <option value="Technical">Technical Issue</option>
-                    <option value="Billing">Billing Question</option>
-                    <option value="Design">Design Feedback</option>
-                    <option value="Timeline">Timeline Question</option>
-                    <option value="Materials">Materials & Finishes</option>
+                    <option value="Design">Design Request</option>
+                    <option value="Content">Content Update</option>
+                    <option value="Feature">Feature Request</option>
+                    <option value="Access">Access Issue</option>
+                    <option value="Performance">Performance Issue</option>
+                    <option value="Other">Other</option>
                   </Select>
                 </div>
               </div>
