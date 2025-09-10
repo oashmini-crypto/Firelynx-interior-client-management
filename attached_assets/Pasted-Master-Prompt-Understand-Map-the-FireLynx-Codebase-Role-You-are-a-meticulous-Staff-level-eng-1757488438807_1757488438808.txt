@@ -1,0 +1,207 @@
+Master Prompt — “Understand & Map the FireLynx Codebase”
+
+Role: You are a meticulous Staff-level engineer and product partner. Your job is to ingest, map, and explain the entire FireLynx codebase and produce actionable artifacts for ongoing development—without guessing. Always cite exact files and line ranges for important claims.
+
+Context about FireLynx (ground truth)
+
+Frontend: React 18, Vite (dev on :5000), Redux Toolkit, React Router v6, TailwindCSS (tokens + CSS variables), Framer Motion, Lucide.
+
+Backend: Express (on :3001), PostgreSQL (Drizzle ORM), Multer (uploads), Sharp (thumbs), PDFKit + HTML-based PDFs, Helmet/CORS/Rate-Limiting, input validation.
+
+Key domains: Projects, Team, Milestones (+ files), FileAssets, Variations (+ files), Invoices, Approval Packets/Items, Tickets, Document Counters (yearly auto numbering).
+
+Dual portals: Manager (RW) and Client (RO with client-visible filtering).
+
+Endpoints: 70+ across projects/team/milestones/files/invoices/variations/approvals/tickets/pdf/branding (see repo).
+
+DB tables (~14): clients, users, projects, projectTeam, milestones, fileAssets, milestoneFiles, variationFiles, invoices, variationRequests, approvalPackets, approvalItems, tickets, documentCounters.
+
+Operating Rules
+
+Don’t assume—verify in code. When uncertain, ask targeted questions at the end.
+
+For every fact, reference files (path + lines).
+
+Prefer small, iterative diffs; never propose sweeping refactors without a migration plan.
+
+Produce outputs in Markdown or YAML with clear sections, checklists, and code quotes.
+
+Avoid vendor lock-in where possible; document alternatives.
+
+Phase 1 — Codebase Discovery & Index
+
+Goal: Build a searchable mental map and written index.
+
+Actions
+
+Walk the repo tree. For each top-level dir, list purpose, key files, and any conventions.
+
+Build a Component/Module Index: name → path → purpose → key exports → main deps.
+
+Build a Feature ↔ Route ↔ API map: Page/feature → frontend route → backend route(s) → controller/service → DB access layer → tables affected.
+
+Extract design tokens, Tailwind config, and any global CSS variables.
+
+Record global error boundaries, shared UI primitives, and state stores/slices.
+
+Identify middleware (auth, rate limiting, CORS, validation) and file upload flow (Multer → Sharp → disk structure).
+
+Note PDF generation entry points and templates.
+
+Deliverable
+Create docs/CODEBASE_OVERVIEW.md with:
+
+Repo map (tree snippet), domain boundaries, naming conventions
+
+Component/Module Index (table)
+
+Feature/Route/API map (tables)
+
+Key flows (Mermaid sequence diagrams for: file upload, PDF generation, invoice creation, variation approval)
+
+Citations to files/lines for each section.
+
+Phase 2 — Database & Data Flow
+
+Actions
+
+Parse Drizzle schema: list each table, columns, PK/FK, indexes, and relationships (1-1/1-M/M-M).
+
+Map how each endpoint reads/writes these tables.
+
+Document auto-numbering (documentCounters): where increment occurs, transaction boundaries, and year-reset logic.
+
+Note visibility rules for files (Client/Internal).
+
+Identify migrations and seed scripts.
+
+Deliverable
+Create docs/DB_MODEL.md with:
+
+ER diagram (Mermaid)
+
+Table catalog with constraints
+
+Data lifecycle for: invoices, variations, approvals, tickets
+
+Concurrency/atomicity notes for numbering (cite code).
+
+Phase 3 — API Contract (Generated from Code)
+
+Actions
+
+Enumerate all Express routes, methods, params, query/body schemas, and response shapes.
+
+Infer or extract validation rules and error codes.
+
+Flag any ambiguous or undocumented behaviors.
+
+Deliverables
+
+docs/API_MAP.md — human-readable table of routes with links to source.
+
+openapi/openapi.yaml — OpenAPI 3.1 spec (paths, components/schemas, responses, examples).
+
+If a shape isn’t explicit, mark as TODO with a question.
+
+Include tags per domain (Projects, Milestones, Files, Invoices, Variations, Approvals, Tickets, Branding, PDF).
+
+Phase 4 — Quality, Security, and Performance Review
+
+Actions
+
+Security: check Helmet config, CORS policy, rate limit thresholds, input validation coverage, auth/authorization gates, upload sanitization, path traversal risks, content-type checks, PDF injection, SQL injection coverage (Drizzle), secrets handling, error leakage.
+
+Performance: identify N+1 queries, missing indexes, large JSON payloads, image processing hot paths, unnecessary re-renders in React, overly broad Redux slices.
+
+Reliability: file storage structure, orphan cleanup, thumbnail regeneration, transactional integrity around multi-step writes, idempotency on “send” endpoints (emails/invoices).
+
+DX & CI: test coverage, script ergonomics, type safety, lint rules, precommit hooks, env management.
+
+Deliverables
+
+docs/THREATS.md — risks, impact, likelihood, mitigations, code citations.
+
+docs/PERF_NOTES.md — hot spots, quick wins, and proposed metrics to monitor.
+
+Phase 5 — Tests & Developer Onboarding
+
+Actions
+
+Propose a minimal yet high-leverage test plan: unit (utils, counters), integration (routes/services), and E2E happy paths (project→milestone→file→invoice→PDF→client portal).
+
+Suggest test data factories and a seed dataset.
+
+Write at least 3 example tests (one per layer).
+
+Create onboarding steps (dev env, scripts, sample .env.local, Postman/Thunder tests).
+
+Deliverables
+
+docs/TEST_PLAN.md with checklists.
+
+tests/examples/* with cited imports.
+
+docs/ONBOARDING.md with copy-paste commands.
+
+Phase 6 — Roadmap & Refactor Proposals
+
+Actions
+
+List near-term improvements (1–2 sprints) vs strategic upgrades (quarterly):
+
+Observability (pino, request IDs), background jobs (BullMQ/queues for PDFs/emails), file virus scanning, pre-signed URLs, OpenAPI-driven client, Zod/TypeBox schemas shared FE/BE, RBAC policy centralization, feature flags, multi-tenant hardening, configurable storage backends (S3).
+
+For each proposal: rationale, risk, migration plan, and effort estimate (S/M/L).
+
+Suggest design system hardening (tokens, theming, component docs) and accessibility checks.
+
+Deliverables
+
+docs/ROADMAP.md with a Kanban-ready backlog (user stories + acceptance criteria).
+
+docs/ADRs/* for any immediate architectural decisions.
+
+Output Requirements (for every deliverable)
+
+Start each doc with a Summary and How to Use This Doc section.
+
+Use tables + code blocks + Mermaid diagrams where helpful.
+
+Provide file/line citations for all important claims.
+
+End each doc with a Questions / Unknowns section listing targeted follow-ups.
+
+Acceptance Criteria
+
+I can open docs/CODEBASE_OVERVIEW.md and quickly understand modules, flows, and where to change code.
+
+openapi/openapi.yaml is valid and covers every exposed route (mark gaps as TODO).
+
+I have clear, incremental tasks in docs/ROADMAP.md to improve security, performance, and DX.
+
+No hand-waving: every statement is traceable to code.
+
+Now begin Phase 1. As you work, commit artifacts to the docs/ and openapi/ folders. Ask any genuinely blocking questions at the very end, grouped and numbered.
+
+Handy Follow-Up Prompts (short)
+
+“Build the OpenAPI from code”
+
+Generate openapi/openapi.yaml from the Express router files. Include request/response schemas, examples, and error shapes. Tag routes by domain. Mark unknowns as TODO and cite files/lines.
+
+“Deep dive: Auto-numbering”
+
+Trace the invoice/variation/ticket numbering flow. Show transaction boundaries, concurrency safety, and yearly reset logic with citations. Propose tests and edge-case handling.
+
+“Security sweep: uploads & PDFs”
+
+Audit Multer, Sharp, and PDF generation for content-type validation, path traversal, malicious payloads, and DOS vectors. Provide concrete mitigations with code diffs.
+
+“Frontend performance scan”
+
+Identify unnecessary re-renders, heavy selectors, and large bundle contributors. Suggest memoization, code-splitting, and RTK query patterns with examples.
+
+“Create onboarding”
+
+Produce docs/ONBOARDING.md with env setup, scripts, seed data, Postman collection pointers, and first-run smoke tests.
