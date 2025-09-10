@@ -4,7 +4,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const { db, approvalPackets, approvalItems, fileAssets, users, documentCounters } = require('../database');
-const { eq, desc } = require('drizzle-orm');
+const { eq, desc, and, inArray } = require('drizzle-orm');
 
 // Helper function to generate approval numbers
 async function generateApprovalNumber() {
