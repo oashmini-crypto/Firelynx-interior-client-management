@@ -173,6 +173,22 @@ const approvalItems = pgTable('approval_items', {
   decidedAt: timestamp('decided_at')
 });
 
+const approvalFiles = pgTable('approval_files', {
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
+  approvalId: varchar('approval_id', { length: 50 }).references(() => approvalPackets.id).notNull(),
+  uploadedBy: varchar('uploaded_by', { length: 50 }).references(() => users.id).notNull(),
+  fileName: varchar('file_name', { length: 500 }).notNull(),
+  fileType: varchar('file_type', { length: 100 }).notNull(),
+  size: integer('size').notNull(),
+  storageUrl: varchar('storage_url', { length: 1000 }).notNull(),
+  previewUrl: varchar('preview_url', { length: 1000 }),
+  visibility: varchar('visibility', { length: 50 }).notNull().default('client'),
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, accepted, declined
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
 const variationRequests = pgTable('variation_requests', {
   id: varchar('id', { length: 50 }).primaryKey(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
@@ -309,6 +325,7 @@ module.exports = {
   invoices,
   approvalPackets,
   approvalItems,
+  approvalFiles,
   variationRequests,
   variationFiles,
   tickets,
