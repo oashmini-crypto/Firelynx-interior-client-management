@@ -4,38 +4,33 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const { db, variationRequests, documentCounters } = require('../database');
-const { eq, desc } = require('drizzle-orm');
+const { eq, desc, sql } = require('drizzle-orm');
 
 // Helper function to generate variation numbers
 async function generateVariationNumber() {
   const currentYear = new Date().getFullYear();
   
   try {
-    const counterResult = await db
-      .select()
-      .from(documentCounters)
-      .where(eq(documentCounters.year, currentYear))
-      .limit(1);
-    
-    let counter;
-    if (counterResult.length === 0) {
-      const newCounter = await db
-        .insert(documentCounters)
-        .values({ year: currentYear, variationCounter: 1 })
-        .returning();
-      counter = 1;
-    } else {
-      const updatedCounter = await db
-        .update(documentCounters)
-        .set({ 
-          variationCounter: counterResult[0].variationCounter + 1,
+    // Atomic upsert operation to avoid race conditions
+    const result = await db
+      .insert(documentCounters)
+      .values({ 
+        year: currentYear, 
+        invoiceCounter: 0,
+        variationCounter: 1,
+        approvalCounter: 0,
+        ticketCounter: 0
+      })
+      .onConflictDoUpdate({
+        target: documentCounters.year,
+        set: { 
+          variationCounter: sql`${documentCounters.variationCounter} + 1`,
           updatedAt: new Date()
-        })
-        .where(eq(documentCounters.year, currentYear))
-        .returning();
-      counter = updatedCounter[0].variationCounter;
-    }
+        }
+      })
+      .returning();
     
+    const counter = result[0].variationCounter;
     return `VR-${currentYear}-${counter.toString().padStart(4, '0')}`;
   } catch (error) {
     console.error('Error generating variation number:', error);

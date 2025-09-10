@@ -5,40 +5,33 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const { db, invoices, documentCounters } = require('../database');
-const { eq, and, desc } = require('drizzle-orm');
+const { eq, and, desc, sql } = require('drizzle-orm');
 
 // Helper function to generate invoice numbers
 async function generateInvoiceNumber() {
   const currentYear = new Date().getFullYear();
   
   try {
-    const counterResult = await db
-      .select()
-      .from(documentCounters)
-      .where(eq(documentCounters.year, currentYear))
-      .limit(1);
-    
-    let counter;
-    if (counterResult.length === 0) {
-      // Create new year counter
-      const newCounter = await db
-        .insert(documentCounters)
-        .values({ year: currentYear, invoiceCounter: 1 })
-        .returning();
-      counter = 1;
-    } else {
-      // Increment existing counter
-      const updatedCounter = await db
-        .update(documentCounters)
-        .set({ 
-          invoiceCounter: counterResult[0].invoiceCounter + 1,
+    // Atomic upsert operation to avoid race conditions
+    const result = await db
+      .insert(documentCounters)
+      .values({ 
+        year: currentYear, 
+        invoiceCounter: 1,
+        variationCounter: 0,
+        approvalCounter: 0,
+        ticketCounter: 0
+      })
+      .onConflictDoUpdate({
+        target: documentCounters.year,
+        set: { 
+          invoiceCounter: sql`${documentCounters.invoiceCounter} + 1`,
           updatedAt: new Date()
-        })
-        .where(eq(documentCounters.year, currentYear))
-        .returning();
-      counter = updatedCounter[0].invoiceCounter;
-    }
+        }
+      })
+      .returning();
     
+    const counter = result[0].invoiceCounter;
     return `INV-${currentYear}-${counter.toString().padStart(4, '0')}`;
   } catch (error) {
     console.error('Error generating invoice number:', error);
