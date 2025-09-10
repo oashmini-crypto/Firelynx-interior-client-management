@@ -4,6 +4,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import Icon from '../../../components/AppIcon';
+import FileUploadModal from '../../../components/modals/FileUploadModal';
 
 const ProjectApprovals = ({ projectId }) => {
   const [approvals, setApprovals] = useState([]);
@@ -13,8 +14,11 @@ const ProjectApprovals = ({ projectId }) => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [pendingApprovalId, setPendingApprovalId] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -93,6 +97,7 @@ const ProjectApprovals = ({ projectId }) => {
     }
 
     try {
+      // First create the approval packet with selected existing files
       const approvalData = {
         projectId,
         title: formData.title,
@@ -104,6 +109,14 @@ const ProjectApprovals = ({ projectId }) => {
       const response = await approvalsAPI.create(approvalData);
       
       if (response.data?.success) {
+        const newApprovalId = response.data.data.id;
+        
+        // If there are uploaded files, we need to upload them to the new approval
+        if (uploadedFiles.length > 0) {
+          setPendingApprovalId(newApprovalId);
+          // The uploaded files will be handled separately via the file upload success callback
+        }
+        
         // Refresh the approvals list
         await loadApprovals();
         setShowCreateModal(false);
@@ -115,6 +128,8 @@ const ProjectApprovals = ({ projectId }) => {
           dueDate: ''
         });
         setSelectedFiles([]);
+        setUploadedFiles([]);
+        setPendingApprovalId(null);
         
         alert(`Approval packet ${response.data.data.number} created successfully!`);
       } else {
@@ -124,6 +139,12 @@ const ProjectApprovals = ({ projectId }) => {
       console.error('Error creating approval packet:', error);
       alert(error.message || 'Failed to create approval packet. Please try again.');
     }
+  };
+
+  const handleFileUploadSuccess = (uploadedFilesList) => {
+    console.log('Files uploaded successfully:', uploadedFilesList);
+    setUploadedFiles(prev => [...prev, ...uploadedFilesList]);
+    setShowFileUpload(false);
   };
 
   const handleSendApproval = (approval) => {
@@ -372,24 +393,60 @@ const ProjectApprovals = ({ projectId }) => {
                   />
                 </div>
 
-                {/* File Selection */}
+                {/* File Selection & Upload */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Select Files to Include</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border border-border rounded-lg p-4">
-                    {availableFiles?.map((file) => (
-                      <div key={file?.id} className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md">
-                        <Checkbox
-                          checked={selectedFiles?.some(f => f?.id === file?.id)}
-                          onChange={() => handleFileToggle(file)}
-                        />
-                        <Icon name={file?.type === 'image' ? 'Image' : 'FileText'} size={16} />
-                        <span className="text-sm">{file?.name}</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Files to Include</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFileUpload(true)}
+                      iconName="Upload"
+                    >
+                      Upload New Files
+                    </Button>
                   </div>
-                  <p className="text-text-secondary text-sm mt-2">
-                    Selected: {selectedFiles?.length} files
-                  </p>
+                  
+                  {/* Uploaded Files Section */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-green-700 mb-2">✓ Newly Uploaded Files ({uploadedFiles.length})</h4>
+                      <div className="space-y-2 p-3 bg-green-50 rounded-lg border border-green-200 max-h-32 overflow-y-auto">
+                        {uploadedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center space-x-2">
+                            <Icon name={file.fileType?.startsWith('image/') ? 'Image' : 'FileText'} size={14} className="text-green-600" />
+                            <span className="text-sm text-green-800">{file.fileName}</span>
+                            <span className="text-xs text-green-600">({Math.round(file.size / 1024)} KB)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Existing Files Selection */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Select from Existing Project Files</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto border border-border rounded-lg p-4">
+                      {availableFiles?.map((file) => (
+                        <div key={file?.id} className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md">
+                          <Checkbox
+                            checked={selectedFiles?.some(f => f?.id === file?.id)}
+                            onChange={() => handleFileToggle(file)}
+                          />
+                          <Icon name={file?.type === 'image' ? 'Image' : 'FileText'} size={16} />
+                          <span className="text-sm">{file?.name}</span>
+                        </div>
+                      ))}
+                      {availableFiles?.length === 0 && (
+                        <div className="col-span-2 text-center py-4 text-gray-500 text-sm">
+                          No existing files available. Upload new files above.
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-text-secondary text-sm mt-2">
+                      Selected existing files: {selectedFiles?.length}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -487,6 +544,16 @@ const ProjectApprovals = ({ projectId }) => {
           </div>
         </div>
       )}
+
+      {/* File Upload Modal */}
+      <FileUploadModal
+        isOpen={showFileUpload}
+        onClose={() => setShowFileUpload(false)}
+        onUpload={handleFileUploadSuccess}
+        approvalId={pendingApprovalId}
+        projectId={projectId}
+        title="Upload Files for Approval"
+      />
     </div>
   );
 };

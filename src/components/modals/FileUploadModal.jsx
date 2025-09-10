@@ -8,6 +8,7 @@ const FileUploadModal = ({
   onClose, 
   onUpload, 
   milestoneId, 
+  approvalId,
   projectId,
   maxFiles = 10,
   title = "Upload Files"
@@ -136,10 +137,13 @@ const FileUploadModal = ({
         const formData = new FormData();
         formData.append('files', fileItem.file);
         formData.append('projectId', projectId);
-        formData.append('visibility', milestoneId ? 'client' : 'Client'); // Use lowercase for milestone API
+        formData.append('visibility', (milestoneId || approvalId) ? 'client' : 'Client'); // Use lowercase for milestone/approval API
         
         if (milestoneId) {
           // For milestone uploads - use correct field name for milestone API
+          formData.append('uploadedBy', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
+        } else if (approvalId) {
+          // For approval uploads - use correct field name for approval API
           formData.append('uploadedBy', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
         } else {
           // For generic uploads - use file_assets field name
@@ -154,10 +158,11 @@ const FileUploadModal = ({
           fileName: fileItem.file.name,
           size: fileItem.file.size,
           projectId,
-          milestoneId: milestoneId || 'none'
+          milestoneId: milestoneId || 'none',
+          approvalId: approvalId || 'none'
         });
 
-        // Use milestone-specific API if milestoneId provided, otherwise generic files API
+        // Use specific API based on context: milestone, approval, or generic files
         let response;
         if (milestoneId) {
           // Use milestone-specific upload endpoint
@@ -169,8 +174,18 @@ const FileUploadModal = ({
             throw new Error(`Upload failed: ${response.statusText}`);
           }
           response = { data: await response.json() };
+        } else if (approvalId) {
+          // Use approval-specific upload endpoint
+          response = await fetch(`/api/approvals/${approvalId}/files`, {
+            method: 'POST',
+            body: formData
+          });
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
+          }
+          response = { data: await response.json() };
         } else {
-          // Use generic files API for non-milestone uploads
+          // Use generic files API for non-milestone/approval uploads
           response = await filesAPI.upload(formData);
         }
         
