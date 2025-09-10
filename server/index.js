@@ -13,6 +13,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Enable trust proxy for Replit environment
+app.set('trust proxy', 1);
+
 // Security and middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
