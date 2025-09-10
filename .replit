@@ -4,7 +4,7 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["glib", "gtk3", "at-spi2-atk", "at-spi2-core", "cups", "alsa-lib", "libdrm"]
+packages = ["glib", "gtk3", "at-spi2-atk", "at-spi2-core", "cups", "alsa-lib", "libdrm", "xorg.libXrandr", "xorg.libXcomposite", "xorg.libXdamage", "chromium"]
 
 [workflows]
 runButton = "Project"
