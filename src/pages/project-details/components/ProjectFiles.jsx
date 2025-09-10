@@ -85,7 +85,7 @@ const ProjectFiles = ({ projectId }) => {
       const formData = new FormData();
       formData.append('files', selectedFile);
       formData.append('projectId', projectId);
-      formData.append('uploadedByUserId', 'user_001'); // TODO: Get from auth context
+      formData.append('uploadedByUserId', 'd9eb3fb5-4d74-4d15-b65e-801d0bd0eadf'); // Alice Cooper ID
       formData.append('visibility', uploadFormData.visibility);
       
       if (uploadFormData.milestoneId) {
