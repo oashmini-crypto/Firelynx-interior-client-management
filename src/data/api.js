@@ -18,7 +18,10 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     
     try {
-      console.log('🔄 API Request:', options.method || 'GET', endpoint, 'Full URL:', url);
+      // Development logging only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 API Request:', options.method || 'GET', endpoint, 'Full URL:', url);
+      }
       
       const response = await fetch(url, {
         headers: {
@@ -30,15 +33,23 @@ class ApiClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ API DIAGNOSTICS: ${options.method || 'GET'} ${url} - Status: ${response.status}`, { error: errorText || 'No error message', payload: options.body, responseTime: Date.now() });
+        // Development-only detailed error diagnostics to prevent PII leaks
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`❌ API DIAGNOSTICS: ${options.method || 'GET'} ${url} - Status: ${response.status}`, { error: errorText || 'No error message', payload: options.body, responseTime: Date.now() });
+        }
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('✅ API Response:', endpoint, data);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ API Response:', endpoint, data);
+      }
       return data;
     } catch (error) {
-      console.error(`❌ API Error [${endpoint}]:`, error);
+      // Development-only detailed error logging to prevent information leakage
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ API Error [${endpoint}]:`, error);
+      }
       throw error;
     }
   }

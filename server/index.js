@@ -157,40 +157,45 @@ app.use('/api', diagnosticsMiddleware);
 const diagnosticsEndpoints = require('./diagnostics-endpoints');
 app.use('/', diagnosticsEndpoints);
 
-// Diagnostics route (hidden but accessible)
-app.get('/__diagnostics', (req, res) => {
-  res.json({
-    title: 'FireLynx API Diagnostics',
-    ...diagnostics.getData()
+// Diagnostics routes - development only for security (DEFAULT TO BLOCKED)
+if (process.env.NODE_ENV === 'development') {
+  // Diagnostics route (hidden but accessible)
+  app.get('/__diagnostics', (req, res) => {
+    res.json({
+      title: 'FireLynx API Diagnostics',
+      ...diagnostics.getData()
+    });
   });
-});
 
-// Clear diagnostics route
-app.post('/__diagnostics/clear', (req, res) => {
-  const result = diagnostics.clear();
-  res.json(result);
-});
+  // Clear diagnostics route
+  app.post('/__diagnostics/clear', (req, res) => {
+    const result = diagnostics.clear();
+    res.json(result);
+  });
+}
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  const originalSend = res.send;
-  const originalJson = res.json;
-  
-  res.send = function(data) {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
-    return originalSend.call(this, data);
-  };
-  
-  res.json = function(data) {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
-    return originalJson.call(this, data);
-  };
-  
-  next();
-});
+// Request logging middleware - only in development
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const originalSend = res.send;
+    const originalJson = res.json;
+    
+    res.send = function(data) {
+      const duration = Date.now() - start;
+      console.log(`${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
+      return originalSend.call(this, data);
+    };
+    
+    res.json = function(data) {
+      const duration = Date.now() - start;
+      console.log(`${req.method} ${req.path} → ${res.statusCode} (${duration}ms)`);
+      return originalJson.call(this, data);
+    };
+    
+    next();
+  });
+}
 
 // Route imports
 const projectRoutes = require('./routes/projects');

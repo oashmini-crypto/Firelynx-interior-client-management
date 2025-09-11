@@ -246,7 +246,9 @@ router.get('/invoice/:invoiceId/preview', async (req, res) => {
   try {
     const { invoiceId } = req.params;
     
-    console.log(`🔄 Generating HTML preview for invoice ${invoiceId}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Generating HTML preview for invoice ${invoiceId}`);
+    }
     
     // Get invoice data
     const invoice = await db
@@ -256,12 +258,16 @@ router.get('/invoice/:invoiceId/preview', async (req, res) => {
       .limit(1);
     
     if (invoice.length === 0) {
-      console.log(`❌ Invoice ${invoiceId} not found`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Invoice ${invoiceId} not found`);
+      }
       return res.status(404).send('<h1>Invoice not found</h1>');
     }
     
     const invoiceData = invoice[0];
-    console.log(`✅ Found invoice: ${invoiceData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Found invoice: ${invoiceData.number}`);
+    }
     
     // Get project data for client details
     let projectData = null;
@@ -272,23 +278,31 @@ router.get('/invoice/:invoiceId/preview', async (req, res) => {
         .where(eq(projects.id, invoiceData.projectId))
         .limit(1);
       projectData = project[0] || null;
-      console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      }
     }
     
     const settings = await getBrandingSettings();
     
     // Generate HTML from template
-    console.log('🔄 Generating HTML from template...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating HTML from template...');
+    }
     const html = await generateInvoiceHTML(invoiceData, projectData, settings);
     
-    console.log(`✅ HTML preview generated for ${invoiceData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ HTML preview generated for ${invoiceData.number}`);
+    }
     
     // Send HTML response
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
     
   } catch (error) {
-    console.error('❌ Error generating invoice preview:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Error generating invoice preview:', error);
+    }
     res.status(500).send('<h1>Error generating invoice preview</h1><p>' + error.message + '</p>');
   }
 });
@@ -300,7 +314,9 @@ router.get('/invoice/:invoiceId', async (req, res) => {
   try {
     const { invoiceId } = req.params;
     
-    console.log(`🔄 Generating PDF for invoice ${invoiceId}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Generating PDF for invoice ${invoiceId}`);
+    }
     
     // Get invoice data
     const invoice = await db
@@ -310,7 +326,9 @@ router.get('/invoice/:invoiceId', async (req, res) => {
       .limit(1);
     
     if (invoice.length === 0) {
-      console.log(`❌ Invoice ${invoiceId} not found`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Invoice ${invoiceId} not found`);
+      }
       return res.status(404).json({
         success: false,
         error: 'Invoice not found'
@@ -318,7 +336,9 @@ router.get('/invoice/:invoiceId', async (req, res) => {
     }
     
     const invoiceData = invoice[0];
-    console.log(`✅ Found invoice: ${invoiceData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Found invoice: ${invoiceData.number}`);
+    }
     
     // Get project data for client details
     let projectData = null;
@@ -329,13 +349,17 @@ router.get('/invoice/:invoiceId', async (req, res) => {
         .where(eq(projects.id, invoiceData.projectId))
         .limit(1);
       projectData = project[0] || null;
-      console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      }
     }
     
     const settings = await getBrandingSettings();
     
     // Generate HTML from template
-    console.log('🔄 Generating HTML from template...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating HTML from template...');
+    }
     const html = await generateInvoiceHTML(invoiceData, projectData, settings);
     
     // Configure PDF options
@@ -354,9 +378,13 @@ router.get('/invoice/:invoiceId', async (req, res) => {
     const file = { content: html };
     
     // Generate PDF using html-pdf-node
-    console.log('🔄 Generating PDF...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating PDF...');
+    }
     const pdfBuffer = await htmlPdf.generatePdf(file, options);
-    console.log(`✅ PDF generated successfully for ${invoiceData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ PDF generated successfully for ${invoiceData.number}`);
+    }
     
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
@@ -366,7 +394,9 @@ router.get('/invoice/:invoiceId', async (req, res) => {
     res.send(pdfBuffer);
     
   } catch (error) {
-    console.error('❌ Error generating invoice PDF:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Error generating invoice PDF:', error);
+    }
     
     // No browser cleanup needed for html-pdf-node
     
@@ -384,7 +414,9 @@ router.get('/variation/:variationId/preview', async (req, res) => {
   try {
     const { variationId } = req.params;
     
-    console.log(`🔄 Generating HTML preview for variation ${variationId}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Generating HTML preview for variation ${variationId}`);
+    }
     
     // Get variation data
     const variation = await db
@@ -394,12 +426,16 @@ router.get('/variation/:variationId/preview', async (req, res) => {
       .limit(1);
     
     if (variation.length === 0) {
-      console.log(`❌ Variation ${variationId} not found`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Variation ${variationId} not found`);
+      }
       return res.status(404).send('<h1>Variation request not found</h1>');
     }
     
     const variationData = variation[0];
-    console.log(`✅ Found variation: ${variationData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Found variation: ${variationData.number}`);
+    }
     
     // Get project data for client details
     let projectData = null;
@@ -410,23 +446,31 @@ router.get('/variation/:variationId/preview', async (req, res) => {
         .where(eq(projects.id, variationData.projectId))
         .limit(1);
       projectData = project[0] || null;
-      console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      }
     }
     
     const settings = await getBrandingSettings();
     
     // Generate HTML from template
-    console.log('🔄 Generating HTML from variation template...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating HTML from variation template...');
+    }
     const html = await generateVariationHTML(variationData, projectData, settings);
     
-    console.log(`✅ HTML preview generated for ${variationData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ HTML preview generated for ${variationData.number}`);
+    }
     
     // Send HTML response
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
     
   } catch (error) {
-    console.error('❌ Error generating variation preview:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Error generating variation preview:', error);
+    }
     res.status(500).send('<h1>Error generating variation preview</h1><p>' + error.message + '</p>');
   }
 });
@@ -436,7 +480,9 @@ router.get('/variation/:variationId', async (req, res) => {
   try {
     const { variationId } = req.params;
     
-    console.log(`🔄 Generating PDF for variation ${variationId}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Generating PDF for variation ${variationId}`);
+    }
     
     // Get variation data
     const variation = await db
@@ -446,7 +492,9 @@ router.get('/variation/:variationId', async (req, res) => {
       .limit(1);
     
     if (variation.length === 0) {
-      console.log(`❌ Variation ${variationId} not found`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Variation ${variationId} not found`);
+      }
       return res.status(404).json({
         success: false,
         error: 'Variation request not found'
@@ -454,7 +502,9 @@ router.get('/variation/:variationId', async (req, res) => {
     }
     
     const variationData = variation[0];
-    console.log(`✅ Found variation: ${variationData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Found variation: ${variationData.number}`);
+    }
     
     // Get project data for client details  
     let projectData = null;
@@ -465,16 +515,22 @@ router.get('/variation/:variationId', async (req, res) => {
         .where(eq(projects.id, variationData.projectId))
         .limit(1);
       projectData = project[0] || null;
-      console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Found project: ${projectData?.title || 'Unknown'}`);
+      }
     }
     
     const settings = await getBrandingSettings();
     
     // Generate HTML from template
-    console.log('🔄 Generating HTML from variation template...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating HTML from variation template...');
+    }
     const html = await generateVariationHTML(variationData, projectData, settings);
     
-    console.log('✅ HTML generated, creating PDF...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ HTML generated, creating PDF...');
+    }
     
     // Configure PDF options
     const options = {
@@ -491,9 +547,13 @@ router.get('/variation/:variationId', async (req, res) => {
     const file = { content: html };
     
     // Generate PDF using html-pdf-node
-    console.log('🔄 Generating PDF...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Generating PDF...');
+    }
     const pdfBuffer = await htmlPdf.generatePdf(file, options);
-    console.log(`✅ PDF generated successfully for ${variationData.number}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ PDF generated successfully for ${variationData.number}`);
+    }
     
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
@@ -503,7 +563,9 @@ router.get('/variation/:variationId', async (req, res) => {
     res.send(pdfBuffer);
     
   } catch (error) {
-    console.error('❌ Error generating variation PDF:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Error generating variation PDF:', error);
+    }
     
     if (!res.headersSent) {
       res.status(500).json({
@@ -521,7 +583,9 @@ router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
   try {
     const { projectId, invoiceId } = req.params;
     
-    console.log(`🔄 Client requesting invoice PDF: ${invoiceId} for project: ${projectId}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Client requesting invoice PDF: ${invoiceId} for project: ${projectId}`);
+    }
     
     // Get invoice data with project validation
     const invoice = await db
@@ -534,7 +598,9 @@ router.get('/projects/:projectId/invoices/:invoiceId', async (req, res) => {
       .limit(1);
     
     if (invoice.length === 0) {
-      console.log(`❌ Project-scoped invoice ${invoiceId} not found for project ${projectId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`❌ Project-scoped invoice ${invoiceId} not found for project ${projectId}`);
+      }
       return res.status(404).json({
         success: false,
         error: 'Invoice not found or does not belong to this project'

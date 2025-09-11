@@ -65,7 +65,9 @@ const mockProjects = [
 
 // GET /api/projects - Get all projects (NEVER throws 500)
 router.get('/', async (req, res) => {
-  console.log('📊 GET /api/projects - Request received');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 GET /api/projects - Request received');
+  }
   
   try {
     // Try to fetch from database
@@ -92,7 +94,9 @@ router.get('/', async (req, res) => {
       .leftJoin(clients, eq(projects.clientId, clients.id))
       .orderBy(desc(projects.createdAt));
     
-    console.log(`✅ Successfully fetched ${allProjects.length} projects from database`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Successfully fetched ${allProjects.length} projects from database`);
+    }
     
     res.status(200).json({
       success: true,
@@ -101,15 +105,18 @@ router.get('/', async (req, res) => {
       source: 'database'
     });
   } catch (dbError) {
-    // Log the full error for debugging
-    console.error('❌ Database error in /api/projects:', {
-      message: dbError.message,
-      code: dbError.code,
-      stack: dbError.stack
-    });
+    // Log the full error for debugging - development only to prevent information leakage
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Database error in /api/projects:', {
+        message: dbError.message,
+        code: dbError.code,
+        stack: dbError.stack
+      });
+      
+      console.log('🔄 Using mock data fallback due to database error');
+    }
     
     // ALWAYS return 200 with fallback data to prevent UI crash
-    console.log('🔄 Using mock data fallback due to database error');
     
     res.status(200).json({
       success: true,
@@ -168,7 +175,9 @@ router.get('/:id', async (req, res) => {
       data: project[0]
     });
   } catch (error) {
-    console.error('Error fetching project:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching project:', error);
+    }
     res.status(500).json({
       success: false,
       error: 'Failed to fetch project'
@@ -217,7 +226,9 @@ router.post('/', async (req, res) => {
       message: 'Project created successfully'
     });
   } catch (error) {
-    console.error('Error creating project:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error creating project:', error);
+    }
     res.status(500).json({
       success: false,
       error: 'Failed to create project'
@@ -266,7 +277,9 @@ router.put('/:id', async (req, res) => {
       message: 'Project updated successfully'
     });
   } catch (error) {
-    console.error('Error updating project:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error updating project:', error);
+    }
     res.status(500).json({
       success: false,
       error: 'Failed to update project'
@@ -297,7 +310,9 @@ router.delete('/:id', async (req, res) => {
       message: 'Project deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting project:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error deleting project:', error);
+    }
     res.status(500).json({
       success: false,
       error: 'Failed to delete project'

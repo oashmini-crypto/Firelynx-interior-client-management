@@ -1,7 +1,17 @@
 // Diagnostics endpoints for debugging and verification
+// Only enabled in development environment for security
 const express = require('express');
 const router = express.Router();
 const { execSync } = require('child_process');
+
+// Security middleware - only allow in development (DEFAULT TO BLOCKED for security)
+router.use((req, res, next) => {
+  // Only allow in explicit development mode - default to blocked for security
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  next();
+});
 
 // Get git commit hash and build time
 function getBuildInfo() {
