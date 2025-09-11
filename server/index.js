@@ -155,7 +155,7 @@ app.use('/api', diagnosticsMiddleware);
 
 // Add diagnostic endpoints
 const diagnosticsEndpoints = require('./diagnostics-endpoints');
-app.use('/', diagnosticsEndpoints);
+app.use('/__diagnostics', diagnosticsEndpoints);
 
 // Diagnostics routes - development only for security (DEFAULT TO BLOCKED)
 if (process.env.NODE_ENV === 'development') {

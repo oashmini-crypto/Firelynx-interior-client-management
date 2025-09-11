@@ -5,13 +5,13 @@ const router = express.Router();
 const { execSync } = require('child_process');
 
 // Security middleware - only allow in development (DEFAULT TO BLOCKED for security)
-router.use((req, res, next) => {
+function developmentOnly(req, res, next) {
   // Only allow in explicit development mode - default to blocked for security
   if (process.env.NODE_ENV !== 'development') {
     return res.status(404).json({ error: 'Not found' });
   }
   next();
-});
+}
 
 // Get git commit hash and build time
 function getBuildInfo() {
@@ -32,12 +32,12 @@ function getBuildInfo() {
 }
 
 // GET /__version - Build and version info
-router.get('/__version', (req, res) => {
+router.get('/__version', developmentOnly, (req, res) => {
   res.json(getBuildInfo());
 });
 
 // GET /__routes - List all registered routes
-router.get('/__routes', (req, res) => {
+router.get('/__routes', developmentOnly, (req, res) => {
   const routes = [];
   
   function extractRoutes(stack, basePath = '') {
@@ -63,7 +63,7 @@ router.get('/__routes', (req, res) => {
 });
 
 // GET /__healthz - Health check
-router.get('/__healthz', (req, res) => {
+router.get('/__healthz', developmentOnly, (req, res) => {
   res.status(200).json({
     ok: true,
     timestamp: new Date().toISOString(),
