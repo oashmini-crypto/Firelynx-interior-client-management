@@ -89,21 +89,10 @@ const EnhancedMilestoneCard = ({
   }, [milestone?.id]);
 
   const handleFileUpload = async (uploadedFiles = []) => {
-    // Optimistic update: immediately add uploaded files to state
-    if (uploadedFiles && uploadedFiles.length > 0) {
-      setFiles(prevFiles => {
-        // Add new files to the beginning of the list (most recent first)
-        const newFiles = [...uploadedFiles, ...prevFiles];
-        // Remove duplicates by ID in case the same file exists
-        const uniqueFiles = newFiles.filter((file, index, self) => 
-          index === self.findIndex(f => f.id === file.id)
-        );
-        return uniqueFiles;
-      });
-    } else {
-      // Fallback: fetch files from server if no uploaded files provided
-      await fetchFiles();
-    }
+    // Always fetch fresh files from server after upload 
+    // This ensures we get the latest data regardless of what's passed
+    console.log('🔄 Refreshing milestone files after upload...');
+    await fetchFiles();
     
     if (onFileListUpdate) {
       onFileListUpdate();
