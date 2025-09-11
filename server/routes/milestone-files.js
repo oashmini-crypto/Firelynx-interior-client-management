@@ -313,6 +313,52 @@ router.get('/project/:projectId', async (req, res) => {
   }
 });
 
+// PUT /api/milestone-files/:id/visibility - Update file visibility
+router.put('/:id/visibility', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { visibility } = req.body;
+    
+    // Normalize visibility values
+    let normalizedVisibility;
+    if (visibility.toLowerCase() === 'client') {
+      normalizedVisibility = 'client';
+    } else if (visibility.toLowerCase() === 'internal') {
+      normalizedVisibility = 'internal';
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid visibility. Must be "client" or "internal"'
+      });
+    }
+    
+    const updatedFile = await db
+      .update(milestoneFiles)
+      .set({ visibility: normalizedVisibility })
+      .where(eq(milestoneFiles.id, id))
+      .returning();
+    
+    if (updatedFile.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: updatedFile[0],
+      message: `File visibility updated to ${normalizedVisibility}`
+    });
+  } catch (error) {
+    console.error('Error updating milestone file visibility:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update file visibility'
+    });
+  }
+});
+
 // PUT /api/milestone-files/:id/status - Accept or decline a file
 router.put('/:id/status', async (req, res) => {
   try {

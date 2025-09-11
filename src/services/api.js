@@ -231,6 +231,9 @@ export const filesAPI = {
   // Update file visibility
   updateVisibility: (fileId, visibility) => api.put(`/files/${fileId}/visibility`, { visibility }),
   
+  // Update milestone file visibility
+  updateMilestoneVisibility: (fileId, visibility) => api.put(`/milestone-files/${fileId}/visibility`, { visibility }),
+  
   // Delete file
   delete: (id) => api.delete(`/files/${id}`),
   

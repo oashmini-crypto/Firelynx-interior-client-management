@@ -212,7 +212,7 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
             storageUrl: `/uploads/${file.filename}`,
             previewUrl,
             visibility,
-            status: 'pending' // Default to pending for client approval
+            status: 'accepted' // Auto-approve milestone files for client visibility
           })
           .returning();
         

@@ -142,7 +142,20 @@ const ProjectFiles = ({ projectId }) => {
   const handleVisibilityChange = async (fileId, newVisibility) => {
     try {
       console.log('👁️ Updating file visibility:', { fileId, newVisibility });
-      await filesAPI.updateVisibility(fileId, newVisibility);
+      
+      // Find the file to determine if it's a milestone file
+      const file = files.find(f => f.id === fileId);
+      
+      if (file && file.milestoneId) {
+        // This is a milestone file - use milestone API
+        console.log('🎯 Updating milestone file visibility');
+        await filesAPI.updateMilestoneVisibility(fileId, newVisibility);
+      } else {
+        // This is a general project file - use regular API
+        console.log('📁 Updating general file visibility');
+        await filesAPI.updateVisibility(fileId, newVisibility);
+      }
+      
       console.log('✅ File visibility updated successfully');
       
       // Refresh files list
