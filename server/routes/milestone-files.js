@@ -3,11 +3,48 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
 const { db, milestoneFiles, users } = require('../database');
 const { eq, and, desc } = require('drizzle-orm');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = 'uploads/';
+    try {
+      await fs.access(uploadDir);
+    } catch {
+      await fs.mkdir(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types including modern image formats
+    const allowedTypes = /jpeg|jpg|png|gif|webp|avif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|dwg|dxf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/acad' || file.mimetype === 'image/vnd.dwg';
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  }
+});
 
 // Helper function to generate preview for images and PDFs
 async function generatePreview(filePath, fileName, fileType) {
@@ -127,7 +164,7 @@ router.get('/:milestoneId', async (req, res) => {
 });
 
 // POST /api/milestone-files/upload - Upload files to milestone
-router.post('/upload', async (req, res) => {
+router.post('/upload', upload.array('files', 10), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

@@ -225,7 +225,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/milestones', milestoneRoutes);
-app.use('/api/milestone-files', upload.array('files', 10), milestoneFileRoutes);
+app.use('/api/milestone-files', milestoneFileRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/variations', variationRoutes);
 app.use('/api/variations', require('./routes/variation-files'));
