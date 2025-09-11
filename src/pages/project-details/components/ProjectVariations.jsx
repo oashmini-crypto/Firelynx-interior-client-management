@@ -53,14 +53,46 @@ const ProjectVariations = ({ projectId }) => {
       const result = await apiClient.createVariation(variationData);
       
       if (result.success) {
+        const createdVariation = result.data;
+        console.log('Variation created successfully:', createdVariation);
+        
+        // Upload attachments if any exist
+        if (variationData.attachments && variationData.attachments.length > 0) {
+          console.log(`Uploading ${variationData.attachments.length} file(s) to variation ${createdVariation.id}`);
+          
+          try {
+            // Create FormData for file upload
+            const formData = new FormData();
+            variationData.attachments.forEach((attachment, index) => {
+              formData.append('files', attachment.file);
+            });
+            formData.append('uploadedBy', 'manager-001'); // Default manager user
+            
+            // Upload files to the variation
+            const uploadResponse = await fetch(`/api/variations/${createdVariation.id}/files`, {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (!uploadResponse.ok) {
+              throw new Error(`File upload failed: ${uploadResponse.statusText}`);
+            }
+            
+            const uploadResult = await uploadResponse.json();
+            console.log('Files uploaded successfully:', uploadResult);
+          } catch (uploadError) {
+            console.error('Error uploading files:', uploadError);
+            // Don't fail the entire operation if file upload fails
+            // Just log the error and continue
+          }
+        }
+        
         // Refresh the variations list
         const variationsResponse = await apiClient.getProjectVariations(projectId);
         setVariations(variationsResponse);
         
         // Close modal
         setIsCreateModalOpen(false);
-        
-        console.log('Variation created successfully:', result.data);
       }
     } catch (error) {
       console.error('Error creating variation:', error);
@@ -238,7 +270,7 @@ const ProjectVariations = ({ projectId }) => {
         projects={[]} // Not needed since we're in project context
         currentUserRole="MANAGER"
         currentProjectId={projectId}
-        currentProjectName={project?.title}
+        currentProjectName={project?.name || project?.title}
       />
     </div>
   );
