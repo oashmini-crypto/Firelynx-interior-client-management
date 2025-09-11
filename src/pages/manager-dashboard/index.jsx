@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProfessionalSidebar from '../../components/ui/ProfessionalSidebar';
 import NotificationCenter from '../../components/ui/NotificationCenter';
@@ -8,46 +8,65 @@ import PriorityActionsPanel from './components/PriorityActionsPanel';
 import TeamActivityFeed from './components/TeamActivityFeed';
 import QuickActionsPanel from './components/QuickActionsPanel';
 import Icon from '../../components/AppIcon';
+import { useProjects } from '../../hooks/useProjectData';
+import { useAllVariations } from '../../hooks/useProjectData';
+import { useAllTickets } from '../../hooks/useProjectData';
+import { useAllInvoices } from '../../hooks/useProjectData';
 
 const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Mock KPI data
-  const kpiData = [
-    {
-      title: 'Active Projects',
-      value: '28',
-      change: '+12%',
-      changeType: 'positive',
-      icon: 'Briefcase',
-      color: 'accent'
-    },
-    {
-      title: 'Pending Approvals',
-      value: '15',
-      change: '+5',
-      changeType: 'negative',
-      icon: 'Clock',
-      color: 'warning'
-    },
-    {
-      title: 'Team Utilization',
-      value: '87%',
-      change: '+3%',
-      changeType: 'positive',
-      icon: 'Users',
-      color: 'success'
-    },
-    {
-      title: 'Monthly Revenue',
-      value: '$284K',
-      change: '+18%',
-      changeType: 'positive',
-      icon: 'DollarSign',
-      color: 'primary'
-    }
-  ];
+  // Fetch real data
+  const { data: allProjects = [], isLoading: projectsLoading } = useProjects();
+  const { data: allVariations = [], isLoading: variationsLoading } = useAllVariations();
+  const { data: allTickets = [], isLoading: ticketsLoading } = useAllTickets();
+  const { data: allInvoices = [], isLoading: invoicesLoading } = useAllInvoices();
+
+  // Calculate real KPIs from data
+  const kpiData = useMemo(() => {
+    const activeProjects = allProjects.filter(p => p.status === 'In Progress' || p.status === 'Active').length;
+    const pendingApprovals = allVariations.filter(v => v.status === 'Under Review' || v.status === 'Pending').length;
+    const monthlyRevenue = allInvoices
+      .filter(inv => inv.status === 'Paid' && new Date(inv.paymentDate).getMonth() === new Date().getMonth())
+      .reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0);
+    const openTickets = allTickets.filter(t => t.status === 'Open').length;
+
+    return [
+      {
+        title: 'Active Projects',
+        value: activeProjects.toString(),
+        change: allProjects.length > 0 ? `${allProjects.length} total` : 'No data',
+        changeType: 'neutral',
+        icon: 'Briefcase',
+        color: 'accent'
+      },
+      {
+        title: 'Pending Approvals',
+        value: pendingApprovals.toString(),
+        change: pendingApprovals > 0 ? 'Needs attention' : 'All clear',
+        changeType: pendingApprovals > 0 ? 'negative' : 'positive',
+        icon: 'Clock',
+        color: 'warning'
+      },
+      {
+        title: 'Open Tickets',
+        value: openTickets.toString(),
+        change: allTickets.length > openTickets ? `${allTickets.length - openTickets} resolved` : 'No data',
+        changeType: openTickets === 0 ? 'positive' : 'neutral',
+        icon: 'MessageSquare',
+        color: 'error'
+      },
+      {
+        title: 'Monthly Revenue',
+        value: `AED ${monthlyRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        change: allInvoices.length > 0 ? `${allInvoices.filter(inv => inv.status === 'Paid').length} paid invoices` : 'No data',
+        changeType: 'positive',
+        icon: 'DollarSign',
+        color: 'primary'
+      }
+    ];
+  }, [allProjects, allVariations, allTickets, allInvoices]);
 
   // Update current time every minute
   useEffect(() => {

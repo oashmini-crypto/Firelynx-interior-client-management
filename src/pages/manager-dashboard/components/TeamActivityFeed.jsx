@@ -1,69 +1,91 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 const TeamActivityFeed = () => {
-  const activities = [
-    {
-      id: 1,
-      user: 'Sarah Johnson',
-      action: 'approved',
-      target: 'Kitchen design renders',
-      project: 'Luxury Apartment Renovation',
-      timestamp: '5 minutes ago',
-      type: 'approval',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face'
+  // Fetch real activity logs
+  const { data: activityData, isLoading } = useQuery({
+    queryKey: ['activity-logs'],
+    queryFn: async () => {
+      const response = await axios.get('/api/activity-logs', {
+        params: { limit: 10 }
+      });
+      return response.data.success ? response.data.data : [];
     },
-    {
-      id: 2,
-      user: 'Michael Chen',
-      action: 'completed',
-      target: 'Living room milestone',
-      project: 'Modern Office Redesign',
-      timestamp: '12 minutes ago',
-      type: 'milestone',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-    },
-    {
-      id: 3,
-      user: 'Emily Rodriguez',
-      action: 'submitted',
-      target: 'Variation request VR-2025-002',
-      project: 'Boutique Hotel Lobby',
-      timestamp: '25 minutes ago',
-      type: 'variation',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face'
-    },
-    {
-      id: 4,
-      user: 'David Park',
-      action: 'resolved',
-      target: 'Lighting fixture ticket',
-      project: 'Residential Villa Project',
-      timestamp: '1 hour ago',
-      type: 'ticket',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'
-    },
-    {
-      id: 5,
-      user: 'Lisa Thompson',
-      action: 'uploaded',
-      target: '15 new design files',
-      project: 'Corporate Headquarters',
-      timestamp: '2 hours ago',
-      type: 'file',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=32&h=32&fit=crop&crop=face'
-    },
-    {
-      id: 6,
-      user: 'James Wilson',
-      action: 'created',
-      target: 'New project milestone',
-      project: 'Restaurant Interior',
-      timestamp: '3 hours ago',
-      type: 'milestone',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face'
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Transform real activity data to UI format
+  const activities = React.useMemo(() => {
+    if (!activityData || activityData.length === 0) {
+      return [{
+        id: 'no-activity',
+        user: 'System',
+        action: 'No recent activity',
+        target: 'Get started by creating projects and managing tasks',
+        project: 'FireLynx',
+        timestamp: 'Now',
+        type: 'info'
+      }];
     }
-  ];
+
+    return activityData.map(log => ({
+      id: log.id,
+      user: log.userName || 'User',
+      action: getActionDescription(log.actionType),
+      target: log.description,
+      project: log.projectTitle || 'Unknown Project',
+      timestamp: formatRelativeTime(new Date(log.createdAt)),
+      type: mapActionTypeToUIType(log.actionType)
+    }));
+  }, [activityData]);
+
+  // Helper functions
+  const formatRelativeTime = (date) => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} days ago`;
+  };
+
+  const getActionDescription = (actionType) => {
+    if (!actionType || typeof actionType !== 'string') return 'performed action';
+    
+    const actionMap = {
+      'PROJECT_CREATED': 'created',
+      'PROJECT_UPDATED': 'updated',
+      'MILESTONE_CREATED': 'created milestone',
+      'MILESTONE_UPDATED': 'updated milestone',
+      'VARIATION_CREATED': 'submitted variation',
+      'VARIATION_APPROVED': 'approved variation',
+      'TICKET_CREATED': 'created ticket',
+      'TICKET_RESOLVED': 'resolved ticket',
+      'FILE_UPLOADED': 'uploaded file',
+      'INVOICE_CREATED': 'created invoice',
+      'INVOICE_SENT': 'sent invoice'
+    };
+    return actionMap[actionType] || actionType.toLowerCase();
+  };
+
+  const mapActionTypeToUIType = (actionType) => {
+    if (!actionType || typeof actionType !== 'string') return 'activity';
+    
+    if (actionType.includes('PROJECT')) return 'project';
+    if (actionType.includes('MILESTONE')) return 'milestone';
+    if (actionType.includes('VARIATION')) return 'variation';
+    if (actionType.includes('TICKET')) return 'ticket';
+    if (actionType.includes('FILE')) return 'file';
+    if (actionType.includes('INVOICE')) return 'invoice';
+    return 'activity';
+  };
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -99,14 +121,11 @@ const TeamActivityFeed = () => {
         {activities?.map((activity, index) => (
           <div key={activity?.id} className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <img
-                src={activity?.avatar}
-                alt={activity?.user}
-                className="w-8 h-8 rounded-full object-cover"
-                onError={(e) => {
-                  e.target.src = '/assets/images/no_image.png';
-                }}
-              />
+              <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
+                <span className="text-xs font-medium text-accent">
+                  {activity?.user?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              </div>
             </div>
             
             <div className="flex-1 min-w-0">

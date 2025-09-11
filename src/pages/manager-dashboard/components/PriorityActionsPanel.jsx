@@ -1,50 +1,68 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import { useAllVariations } from '../../../hooks/useProjectData';
+import { useAllTickets } from '../../../hooks/useProjectData';
 
 const PriorityActionsPanel = ({ onNavigate }) => {
-  const priorityItems = [
-    {
-      id: 1,
-      type: 'variation',
-      title: 'Variation Request #VR-2025-001',
-      description: 'Kitchen cabinet modification - Luxury Apartment Renovation',
-      urgency: 'high',
-      dueDate: '2 hours ago',
-      action: 'Review & Approve',
-      route: '/variation-requests'
-    },
-    {
-      id: 2,
-      type: 'milestone',
-      title: 'Overdue Milestone',
-      description: 'Living room design completion - Modern Office Redesign',
-      urgency: 'high',
-      dueDate: '1 day overdue',
-      action: 'Update Status',
-      route: '/manager-dashboard'
-    },
-    {
-      id: 3,
-      type: 'ticket',
-      title: 'High Priority Ticket #TK-2025-015',
-      description: 'Lighting fixture installation issue - Boutique Hotel Lobby',
-      urgency: 'medium',
-      dueDate: '4 hours ago',
-      action: 'Assign Team',
-      route: '/ticketing-system'
-    },
-    {
-      id: 4,
-      type: 'approval',
-      title: 'File Approval Pending',
-      description: 'Final design renders - Residential Villa Project',
-      urgency: 'medium',
-      dueDate: '6 hours ago',
-      action: 'Review Files',
-      route: '/manager-dashboard'
+  // Fetch real data
+  const { data: allVariations = [] } = useAllVariations();
+  const { data: allTickets = [] } = useAllTickets();
+
+  // Generate priority items from real data
+  const priorityItems = React.useMemo(() => {
+    const items = [];
+
+    // Add pending variations
+    const pendingVariations = allVariations
+      .filter(v => v.status === 'Under Review' || v.status === 'Pending')
+      .slice(0, 3)
+      .map(variation => ({
+        id: variation.id,
+        type: 'variation',
+        title: `Variation Request ${variation.number}`,
+        description: `${variation.changeDescription} - ${variation.project?.title || 'Project'}`,
+        urgency: (variation.priority || '').toLowerCase() === 'high' ? 'high' : 'medium',
+        dueDate: new Date(variation.createdAt).toLocaleDateString(),
+        action: 'Review & Approve',
+        route: `/variations`,
+        itemId: variation.id
+      }));
+
+    // Add open tickets with high priority
+    const urgentTickets = allTickets
+      .filter(t => t.status === 'Open' && t.priority === 'High')
+      .slice(0, 2)
+      .map(ticket => ({
+        id: ticket.id,
+        type: 'ticket',
+        title: `Ticket ${ticket.number}`,
+        description: `${ticket.subject} - ${ticket.project?.title || 'Project'}`,
+        urgency: 'high',
+        dueDate: new Date(ticket.createdAt).toLocaleDateString(),
+        action: 'View Details',
+        route: `/tickets`,
+        itemId: ticket.id
+      }));
+
+    items.push(...pendingVariations, ...urgentTickets);
+
+    // If no real items, show message
+    if (items.length === 0) {
+      items.push({
+        id: 'no-items',
+        type: 'info',
+        title: 'All caught up!',
+        description: 'No urgent items requiring immediate attention',
+        urgency: 'low',
+        dueDate: 'Now',
+        action: 'View All',
+        route: '/projects'
+      });
     }
-  ];
+
+    return items.slice(0, 4); // Limit to 4 items
+  }, [allVariations, allTickets]);
 
   const getTypeIcon = (type) => {
     switch (type) {
