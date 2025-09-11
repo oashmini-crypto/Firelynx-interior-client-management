@@ -171,7 +171,7 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
     
     const {
       projectId,
-      uploadedBy = '8eeec650-d268-47a1-96f5-dd9571ec60aa', // Default to Project Manager (Bob Wilson)
+      uploadedBy = '7b024117-7298-4768-9260-7e6beb4209c7', // Default to Alice Cooper
       visibility = 'client'
     } = req.body;
     
@@ -222,7 +222,11 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
         });
       } catch (fileError) {
         console.error(`Error processing file ${file.originalname}:`, fileError);
-        // Continue with other files
+        // Return error immediately instead of continuing
+        return res.status(500).json({
+          success: false,
+          error: `Failed to upload file ${file.originalname}: ${fileError.message}`
+        });
       }
     }
     

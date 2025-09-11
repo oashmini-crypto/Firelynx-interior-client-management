@@ -141,13 +141,13 @@ const FileUploadModal = ({
         
         if (milestoneId) {
           // For milestone uploads - use correct field name for milestone API
-          formData.append('uploadedBy', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
+          formData.append('uploadedBy', '7b024117-7298-4768-9260-7e6beb4209c7'); // Alice Cooper ID
         } else if (approvalId) {
           // For approval uploads - use correct field name for approval API
-          formData.append('uploadedBy', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
+          formData.append('uploadedBy', '7b024117-7298-4768-9260-7e6beb4209c7'); // Alice Cooper ID
         } else {
           // For generic uploads - use file_assets field name
-          formData.append('uploadedByUserId', '588d7bab-7182-48e7-9ecb-8cde7d1f576e'); // Alice Cooper ID
+          formData.append('uploadedByUserId', '7b024117-7298-4768-9260-7e6beb4209c7'); // Alice Cooper ID
           formData.append('milestoneId', milestoneId);
         }
 
