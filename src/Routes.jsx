@@ -15,6 +15,7 @@ import TicketingSystem from './pages/ticketing-system';
 import ProjectDetails from './pages/project-details';
 import ProjectsList from './pages/projects-list';
 import ClientProfiles from './pages/client-profiles';
+import ActivityLog from './pages/activity-log';
 
 const Routes = () => {
   return (
@@ -45,6 +46,7 @@ const Routes = () => {
         <Route path="/variation-requests" element={<VariationRequestsPage />} />
         <Route path="/ticketing-system" element={<TicketingSystem />} />
         <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/activity-log" element={<ActivityLog />} />
         
         {/* Auth */}
         <Route path="/login" element={<LoginPage />} />

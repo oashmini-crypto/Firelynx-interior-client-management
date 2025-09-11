@@ -249,6 +249,23 @@ export const brandingAPI = {
   update: (brandingData) => api.put('/branding', brandingData),
 };
 
+export const activityLogsAPI = {
+  // Get activity logs with optional filters
+  getActivityLogs: (params = {}) => api.get('/activity-logs', { params }),
+  
+  // Create a new activity log entry
+  createLog: (logData) => api.post('/activity-logs', logData),
+  
+  // Get activity stats
+  getStats: (params = {}) => api.get('/activity-logs/stats', { params }),
+  
+  // Export activity logs to CSV
+  exportCSV: (params = {}) => api.get('/activity-logs/export/csv', { 
+    params, 
+    responseType: 'blob' 
+  }),
+};
+
 // Health check
 export const healthAPI = {
   check: () => api.get('/health'),

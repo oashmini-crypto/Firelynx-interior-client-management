@@ -341,6 +341,23 @@ const documentCounters = pgTable('document_counters', {
   updatedAt: timestamp('updated_at').defaultNow()
 });
 
+// Activity logs table for tracking all manager actions
+const activityLogs = pgTable('activity_logs', {
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: varchar('user_id', { length: 50 }).references(() => users.id, { onDelete: 'restrict' }).notNull(),
+  actionType: varchar('action_type', { length: 100 }).notNull(), // file_upload, approval_created, variation_created, etc.
+  description: text('description').notNull(),
+  metadata: json('metadata'), // Additional context like file names, amounts, etc.
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => ({
+  // Performance indexes for filtering and sorting
+  projectIdIdx: index('activity_logs_project_id_idx').on(table.projectId),
+  userIdIdx: index('activity_logs_user_id_idx').on(table.userId),
+  actionTypeIdx: index('activity_logs_action_type_idx').on(table.actionType),
+  createdAtIdx: index('activity_logs_created_at_idx').on(table.createdAt),
+}));
+
 // Database initialization function
 async function initializeDatabase() {
   try {
@@ -380,5 +397,6 @@ module.exports = {
   variationFiles,
   tickets,
   brandingSettings,
-  documentCounters
+  documentCounters,
+  activityLogs
 };

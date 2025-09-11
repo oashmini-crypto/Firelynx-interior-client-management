@@ -46,6 +46,13 @@ const ProfessionalSidebar = ({ isCollapsed = false, onToggleCollapse, notificati
       path: '/user-management',
       icon: 'Users',
       tooltip: 'Team and client management'
+    },
+    {
+      label: 'Activity Log',
+      path: '/activity-log',
+      icon: 'Activity',
+      tooltip: 'Track all project activities and changes',
+      managerOnly: true // Only visible to managers
     }
   ];
 

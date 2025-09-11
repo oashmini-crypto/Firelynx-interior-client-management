@@ -223,6 +223,7 @@ const fileRoutes = require('./routes/files');
 const brandingRoutes = require('./routes/branding');
 const pdfRoutes = require('./routes/pdf-generation');
 const pdfHtmlRoutes = require('./routes/pdf-html');
+const activityLogRoutes = require('./routes/activity-logs');
 
 // Admin routes (before API routes for proper precedence)
 const adminRoutes = require('./routes/admin');
@@ -245,6 +246,7 @@ app.use('/api/files', upload.array('files', 10), fileRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/pdf', pdfHtmlRoutes); // New HTML-based PDF generation
 app.use('/api/pdf-legacy', pdfRoutes); // Legacy PDFKit-based generation
+app.use('/api/activity-logs', activityLogRoutes); // Activity logging for managers
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
