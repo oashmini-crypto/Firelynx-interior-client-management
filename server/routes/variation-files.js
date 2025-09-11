@@ -91,7 +91,7 @@ async function getFileSize(filePath) {
 router.post('/:variationId/files', upload.array('files', 10), async (req, res) => {
   try {
     const { variationId } = req.params;
-    const { uploadedBy = 'manager-001' } = req.body; // Default manager user
+    const { uploadedBy = '8eeec650-d268-47a1-96f5-dd9571ec60aa' } = req.body; // Default to Project Manager (Bob Wilson)
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

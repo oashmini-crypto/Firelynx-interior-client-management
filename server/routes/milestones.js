@@ -171,7 +171,7 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
     
     const {
       projectId,
-      uploadedBy,
+      uploadedBy = '8eeec650-d268-47a1-96f5-dd9571ec60aa', // Default to Project Manager (Bob Wilson)
       visibility = 'client'
     } = req.body;
     

@@ -110,26 +110,10 @@ router.get('/project/:projectId', async (req, res) => {
       );
     }
     
+    // Simplified query to avoid infinite recursion
     const generalFiles = await db
-      .select({
-        id: fileAssets.id,
-        projectId: fileAssets.projectId,
-        milestoneId: fileAssets.milestoneId,
-        ticketId: fileAssets.ticketId,
-        filename: fileAssets.filename,
-        originalName: fileAssets.originalName,
-        url: fileAssets.url,
-        previewUrl: fileAssets.previewUrl, // Use actual previewUrl field
-        contentType: fileAssets.contentType,
-        size: fileAssets.size,
-        visibility: fileAssets.visibility,
-        createdAt: fileAssets.createdAt,
-        uploadedByName: users.name,
-        uploadedByEmail: users.email,
-        source: 'fileAssets'
-      })
+      .select()
       .from(fileAssets)
-      .leftJoin(users, eq(fileAssets.uploadedByUserId, users.id))
       .where(fileAssetsWhere);
 
     // Fetch files from milestoneFiles table
@@ -142,30 +126,49 @@ router.get('/project/:projectId', async (req, res) => {
       );
     }
     
+    // Simplified query to avoid infinite recursion
     const milestoneFilesList = await db
-      .select({
-        id: milestoneFiles.id,
-        projectId: milestoneFiles.projectId,
-        milestoneId: milestoneFiles.milestoneId,
-        ticketId: null, // Not applicable for milestone files
-        filename: milestoneFiles.fileName,
-        originalName: milestoneFiles.fileName,
-        url: milestoneFiles.storageUrl,
-        previewUrl: milestoneFiles.previewUrl,
-        contentType: milestoneFiles.fileType,
-        size: milestoneFiles.size,
-        visibility: milestoneFiles.visibility,
-        createdAt: milestoneFiles.createdAt,
-        uploadedByName: users.name,
-        uploadedByEmail: users.email,
-        source: 'milestoneFiles'
-      })
+      .select()
       .from(milestoneFiles)
-      .leftJoin(users, eq(milestoneFiles.uploadedBy, users.id))
       .where(milestoneFilesWhere);
 
+    // Transform and unify the data formats
+    const transformedGeneralFiles = generalFiles.map(file => ({
+      id: file.id,
+      projectId: file.projectId,
+      milestoneId: file.milestoneId,
+      ticketId: file.ticketId,
+      filename: file.filename,
+      originalName: file.originalName,
+      url: file.url,
+      previewUrl: file.previewUrl,
+      contentType: file.contentType,
+      size: file.size,
+      visibility: file.visibility,
+      createdAt: file.createdAt,
+      uploadedByName: 'System User',
+      source: 'fileAssets'
+    }));
+
+    const transformedMilestoneFiles = milestoneFilesList.map(file => ({
+      id: file.id,
+      projectId: file.projectId,
+      milestoneId: file.milestoneId,
+      ticketId: null,
+      filename: file.fileName,
+      originalName: file.fileName,
+      url: file.storageUrl,
+      previewUrl: file.previewUrl,
+      contentType: file.fileType,
+      size: file.size,
+      visibility: file.visibility,
+      createdAt: file.createdAt,
+      uploadedByName: 'System User',
+      source: 'milestoneFiles'
+    }));
+
     // Combine and sort all files
-    const allFiles = [...generalFiles, ...milestoneFilesList]
+    const allFiles = [...transformedGeneralFiles, ...transformedMilestoneFiles]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
@@ -280,14 +283,28 @@ router.post('/upload', upload.array('files', 10), async (req, res) => {
       projectId,
       milestoneId,
       ticketId,
-      uploadedByUserId,
+      uploadedByUserId = '8eeec650-d268-47a1-96f5-dd9571ec60aa', // Default to Project Manager (Bob Wilson)
       visibility = 'Client'
     } = req.body;
     
-    if (!projectId || !uploadedByUserId) {
+    if (!projectId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: projectId, uploadedByUserId'
+        error: 'Missing required field: projectId'
+      });
+    }
+    
+    // Validate that the user ID exists in the database
+    const userExists = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, uploadedByUserId))
+      .limit(1);
+      
+    if (userExists.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid uploadedByUserId: User does not exist'
       });
     }
     

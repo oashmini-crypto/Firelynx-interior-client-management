@@ -181,7 +181,7 @@ router.post('/', async (req, res) => {
       date: new Date(),
       // Support both old and new formats
       changeRequestor: changeRequestor || 'Manager',
-      changeReference: changeReference || number,
+      changeReference: number, // Always use freshly generated number
       changeArea: changeArea || category || 'General',
       workTypes: JSON.stringify(workTypes || []),
       categories: JSON.stringify(categories || []),
