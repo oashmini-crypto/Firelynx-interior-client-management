@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../data/api';
+import { useAllVariations } from '../../hooks/useProjectData';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
@@ -8,27 +8,8 @@ import Icon from '../../components/AppIcon';
 const VariationsGlobal = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
-  const [allVariations, setAllVariations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Fetch all variations from API
-  useEffect(() => {
-    const fetchAllVariations = async () => {
-      try {
-        setLoading(true);
-        const variations = await apiClient.getAllVariations();
-        setAllVariations(variations || []);
-      } catch (err) {
-        console.error('Error fetching variations:', err);
-        setError('Failed to load variations');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllVariations();
-  }, []);
+  // Use React Query for real-time data synchronization
+  const { data: allVariations = [], isLoading: loading, error } = useAllVariations();
 
   // Filter variations
   const filteredVariations = allVariations.filter(variation => {

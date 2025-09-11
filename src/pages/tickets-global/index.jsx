@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../data/api';
+import { useAllTickets } from '../../hooks/useProjectData';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
@@ -9,27 +9,8 @@ const TicketsGlobal = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [allTickets, setAllTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Fetch all tickets from API
-  useEffect(() => {
-    const fetchAllTickets = async () => {
-      try {
-        setLoading(true);
-        const tickets = await apiClient.getAllTickets();
-        setAllTickets(tickets || []);
-      } catch (err) {
-        console.error('Error fetching tickets:', err);
-        setError('Failed to load tickets');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllTickets();
-  }, []);
+  // Use React Query for real-time data synchronization
+  const { data: allTickets = [], isLoading: loading, error } = useAllTickets();
 
   // Filter tickets
   const filteredTickets = allTickets.filter(ticket => {

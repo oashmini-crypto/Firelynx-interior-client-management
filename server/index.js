@@ -195,6 +195,7 @@ app.use((req, res, next) => {
 // Route imports
 const projectRoutes = require('./routes/projects');
 const projectScopedRoutes = require('./routes/project-scoped');
+const clientRoutes = require('./routes/clients');
 const invoiceRoutes = require('./routes/invoices');
 const teamRoutes = require('./routes/team');
 const milestoneRoutes = require('./routes/milestones');
@@ -215,6 +216,7 @@ app.use('/', adminRoutes);
 app.use('/api/projects', projectRoutes);
 // NEW: Project-scoped API architecture - all resources under /api/projects/:projectId/
 app.use('/api/projects/:projectId', projectScopedRoutes);
+app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/milestones', milestoneRoutes);

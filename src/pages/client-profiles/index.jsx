@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../data/api';
+import { useProjects, useCreateClient, useUpdateClient, useDeleteClient } from '../../hooks/useProjectData';
 import ProfessionalSidebar from '../../components/ui/ProfessionalSidebar';
 import NotificationCenter from '../../components/ui/NotificationCenter';
 import Button from '../../components/ui/Button';
@@ -34,79 +34,65 @@ const ClientProfiles = () => {
     tickets: 7
   };
 
-  // State for clients data from API
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Use React Query for real-time data synchronization
+  const { data: projectsData = [], isLoading: loading, error } = useProjects();
+  
+  // Client mutation hooks
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+  const deleteClientMutation = useDeleteClient();
 
-  // Fetch clients and projects from API
-  useEffect(() => {
-    const fetchClientsData = async () => {
-      try {
-        setLoading(true);
-        const [projectsData] = await Promise.all([
-          apiClient.getProjects()
-        ]);
-
-        // Group projects by client and create client objects
-        const clientMap = new Map();
-        projectsData.forEach(project => {
-          if (project.clientId) {
-            if (!clientMap.has(project.clientId)) {
-              clientMap.set(project.clientId, {
-                id: project.clientId,
-                name: project.clientName || 'Unknown Client',
-                email: project.clientEmail || '',
-                phone: project.clientPhone || '',
-                company: project.clientCompany || '',
-                address: project.clientAddress || '',
-                createdAt: project.createdAt,
-                projects: [],
-                projectCount: 0,
-                totalContractValue: 0,
-                relationshipStatus: 'New'
-              });
-            }
-            
-            const client = clientMap.get(project.clientId);
-            client.projects.push({
-              id: project.id,
-              title: project.title,
-              status: project.status,
-              progress: project.progress,
-              value: project.budget
-            });
-            client.projectCount++;
-            client.totalContractValue += parseFloat(project.budget || 0);
-            
-            // Update relationship status
-            const activeProjects = client.projects.filter(p => p.status === 'In Progress').length;
-            client.relationshipStatus = activeProjects > 0 ? 'Active' : 
-                                      (client.projects.length > 0 ? 'Completed' : 'New');
-            client.lastContact = client.createdAt;
-            client.industry = client.company ? 'Commercial' : 'Residential';
-            client.communicationHistory = [
-              {
-                date: client.createdAt,
-                type: 'Initial Contact',
-                subject: 'Client Onboarding',
-                summary: 'Initial client consultation completed'
-              }
-            ];
-          }
+  // Memoized client data derived from projects
+  const clients = useMemo(() => {
+    const clientMap = new Map();
+    projectsData.forEach(project => {
+      if (project.clientId) {
+        if (!clientMap.has(project.clientId)) {
+          clientMap.set(project.clientId, {
+            id: project.clientId,
+            name: project.clientName || 'Unknown Client',
+            email: project.clientEmail || '',
+            phone: project.clientPhone || '',
+            company: project.clientCompany || '',
+            address: project.clientAddress || '',
+            createdAt: project.createdAt,
+            projects: [],
+            projectCount: 0,
+            totalContractValue: 0,
+            relationshipStatus: 'New'
+          });
+        }
+        
+        const client = clientMap.get(project.clientId);
+        client.projects.push({
+          id: project.id,
+          title: project.title,
+          status: project.status,
+          progress: project.progress,
+          value: project.budget
         });
-
-        setClients(Array.from(clientMap.values()));
-      } catch (err) {
-        console.error('Error fetching clients data:', err);
-        setError('Failed to load clients data');
-      } finally {
-        setLoading(false);
+        client.projectCount++;
+        client.totalContractValue += parseFloat(project.budget || 0);
+        
+        // Update relationship status
+        const activeProjects = client.projects.filter(p => p.status === 'In Progress').length;
+        client.relationshipStatus = activeProjects > 0 ? 'Active' : 
+                                  (client.projects.length > 0 ? 'Completed' : 'New');
+        client.lastContact = client.createdAt;
+        client.industry = client.company ? 'Commercial' : 'Residential';
+        client.communicationHistory = [
+          {
+            date: client.createdAt,
+            type: 'Initial Contact',
+            subject: 'Client Onboarding',
+            summary: 'Initial client consultation completed'
+          }
+        ];
       }
-    };
+    });
 
-    fetchClientsData();
-  }, []);
+    return Array.from(clientMap.values());
+  }, [projectsData]);
 
   // Filter and sort clients
   const filteredAndSortedClients = clients
@@ -173,29 +159,35 @@ const ClientProfiles = () => {
     navigate(`/project-details?new=true&client=${client?.id}`);
   };
 
-  const handleSaveClient = (clientData) => {
-    if (selectedClient) {
-      // Update existing client
-      setClients(prev => prev?.map(c => 
-        c?.id === selectedClient?.id ? { ...c, ...clientData } : c
-      ));
-    } else {
-      // Create new client
-      const newClient = {
-        ...clientData,
-        id: Math.max(...clients?.map(c => c?.id)) + 1,
-        projectCount: 0,
-        totalContractValue: 0,
-        relationshipStatus: 'Prospect',
-        lastContact: new Date()?.toISOString()?.split('T')?.[0],
-        projects: [],
-        communicationHistory: []
-      };
-      setClients(prev => [...prev, newClient]);
+  const handleSaveClient = async (clientData) => {
+    try {
+      if (selectedClient) {
+        // Update existing client
+        await updateClientMutation.mutateAsync({
+          id: selectedClient.id,
+          data: clientData
+        });
+      } else {
+        // Create new client  
+        await createClientMutation.mutateAsync(clientData);
+      }
+      
+      // Close modals and reset state on success
+      setIsCreateModalOpen(false);
+      setIsProfileModalOpen(false);
+      setSelectedClient(null);
+    } catch (error) {
+      console.error('Error saving client:', error);
+      // Error handling is managed by React Query and UI components
     }
-    setIsCreateModalOpen(false);
-    setIsProfileModalOpen(false);
-    setSelectedClient(null);
+  };
+
+  const handleDeleteClient = async (clientId) => {
+    try {
+      await deleteClientMutation.mutateAsync(clientId);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+    }
   };
 
   const sortOptions = [
@@ -419,6 +411,7 @@ const ClientProfiles = () => {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSave={handleSaveClient}
+          isLoading={createClientMutation.isPending}
         />
       )}
       {isProfileModalOpen && selectedClient && (
@@ -430,8 +423,11 @@ const ClientProfiles = () => {
             setSelectedClient(null);
           }}
           onSave={handleSaveClient}
+          onDelete={() => handleDeleteClient(selectedClient.id)}
           onViewProjects={() => handleViewProjects(selectedClient)}
           onCreateProject={() => handleCreateProject(selectedClient)}
+          isLoading={updateClientMutation.isPending}
+          isDeleting={deleteClientMutation.isPending}
         />
       )}
     </div>

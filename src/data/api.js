@@ -240,6 +240,40 @@ class ApiClient {
     
     return response.blob();
   }
+
+  // Client API methods
+  async getClients() {
+    const response = await this.request('/clients');
+    return response.success ? response.data : [];
+  }
+
+  async getClient(id) {
+    const response = await this.request(`/clients/${id}`);
+    return response.success ? response.data : null;
+  }
+
+  async createClient(data) {
+    const response = await this.request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response;
+  }
+
+  async updateClient(id, data) {
+    const response = await this.request(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response;
+  }
+
+  async deleteClient(id) {
+    const response = await this.request(`/clients/${id}`, {
+      method: 'DELETE',
+    });
+    return response;
+  }
 }
 
 // Create singleton API client
@@ -261,14 +295,19 @@ export const {
   getAllTickets,
   getAllMilestones,
   getAllApprovals,
+  getClients,
+  getClient,
   createVariation,
   createInvoice,
   createTicket,
   createApproval,
+  createClient,
   updateVariation,
   updateInvoice,
   updateTicket,
   updateApproval,
+  updateClient,
+  deleteClient,
   generateVariationPdf,
   generateInvoicePdf,
   generateApprovalPdf,
