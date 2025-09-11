@@ -54,38 +54,39 @@ class ApiClient {
     return response.success ? response.data : null;
   }
 
+  // NEW: Project-scoped API endpoints - all resources under /projects/:projectId/
   async getProjectVariations(projectId) {
-    const response = await this.request(`/variations/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/variations`);
     return response.success ? response.data : [];
   }
 
   async getProjectInvoices(projectId) {
-    const response = await this.request(`/invoices/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/invoices`);
     return response.success ? response.data : [];
   }
 
   async getProjectMilestones(projectId) {
-    const response = await this.request(`/milestones/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/milestones`);
     return response.success ? response.data : [];
   }
 
   async getProjectTickets(projectId) {
-    const response = await this.request(`/tickets/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/tickets`);
     return response.success ? response.data : [];
   }
 
   async getProjectFiles(projectId) {
-    const response = await this.request(`/files/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/files`);
     return response.success ? response.data : [];
   }
 
   async getProjectApprovals(projectId) {
-    const response = await this.request(`/approvals/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/approvals`);
     return response.success ? response.data : [];
   }
 
   async getProjectTeam(projectId) {
-    const response = await this.request(`/team/project/${projectId}`);
+    const response = await this.request(`/projects/${projectId}/team`);
     return response.success ? response.data : [];
   }
 

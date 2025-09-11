@@ -15,7 +15,8 @@ const {
   boolean,
   json,
   uuid,
-  pgEnum
+  pgEnum,
+  unique
 } = require('drizzle-orm/pg-core');
 
 // Database connection pool
@@ -83,7 +84,10 @@ const projectTeam = pgTable('project_team', {
   userId: varchar('user_id', { length: 50 }).references(() => users.id).notNull(),
   role: varchar('role', { length: 100 }).notNull(),
   addedAt: timestamp('added_at').defaultNow()
-});
+}, (table) => ({
+  // Unique constraint: one user can only have one role per project
+  uniqueProjectUser: unique().on(table.projectId, table.userId)
+}));
 
 const milestones = pgTable('milestones', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),

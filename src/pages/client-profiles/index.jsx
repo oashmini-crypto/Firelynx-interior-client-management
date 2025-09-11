@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { entities, getProjectsByClientId, formatCurrency, formatDate } from '../../data/store';
+import { apiClient } from '../../data/api';
 import ProfessionalSidebar from '../../components/ui/ProfessionalSidebar';
 import NotificationCenter from '../../components/ui/NotificationCenter';
 import Button from '../../components/ui/Button';
@@ -34,38 +34,79 @@ const ClientProfiles = () => {
     tickets: 7
   };
 
-  // Get client data from store
-  const [clients, setClients] = useState(() => {
-    return entities.clients.map(client => {
-      const clientProjects = getProjectsByClientId(client.id);
-      const totalValue = clientProjects.reduce((sum, project) => sum + project.budget, 0);
-      const activeProjects = clientProjects.filter(p => p.status === 'In Progress').length;
-      
-      return {
-        ...client,
-        projectCount: clientProjects.length,
-        totalContractValue: totalValue,
-        relationshipStatus: activeProjects > 0 ? 'Active' : (clientProjects.length > 0 ? 'Completed' : 'New'),
-        lastContact: client.createdAt,
-        projects: clientProjects.map(project => ({
-          id: project.id,
-          title: project.title,
-          status: project.status,
-          progress: project.progress,
-          value: project.budget
-        })),
-        industry: client.company ? 'Commercial' : 'Residential',
-        communicationHistory: [
-          {
-            date: client.createdAt,
-            type: 'Initial Contact',
-            subject: 'Client Onboarding',
-            summary: 'Initial client consultation completed'
+  // State for clients data from API
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch clients and projects from API
+  useEffect(() => {
+    const fetchClientsData = async () => {
+      try {
+        setLoading(true);
+        const [projectsData] = await Promise.all([
+          apiClient.getProjects()
+        ]);
+
+        // Group projects by client and create client objects
+        const clientMap = new Map();
+        projectsData.forEach(project => {
+          if (project.clientId) {
+            if (!clientMap.has(project.clientId)) {
+              clientMap.set(project.clientId, {
+                id: project.clientId,
+                name: project.clientName || 'Unknown Client',
+                email: project.clientEmail || '',
+                phone: project.clientPhone || '',
+                company: project.clientCompany || '',
+                address: project.clientAddress || '',
+                createdAt: project.createdAt,
+                projects: [],
+                projectCount: 0,
+                totalContractValue: 0,
+                relationshipStatus: 'New'
+              });
+            }
+            
+            const client = clientMap.get(project.clientId);
+            client.projects.push({
+              id: project.id,
+              title: project.title,
+              status: project.status,
+              progress: project.progress,
+              value: project.budget
+            });
+            client.projectCount++;
+            client.totalContractValue += parseFloat(project.budget || 0);
+            
+            // Update relationship status
+            const activeProjects = client.projects.filter(p => p.status === 'In Progress').length;
+            client.relationshipStatus = activeProjects > 0 ? 'Active' : 
+                                      (client.projects.length > 0 ? 'Completed' : 'New');
+            client.lastContact = client.createdAt;
+            client.industry = client.company ? 'Commercial' : 'Residential';
+            client.communicationHistory = [
+              {
+                date: client.createdAt,
+                type: 'Initial Contact',
+                subject: 'Client Onboarding',
+                summary: 'Initial client consultation completed'
+              }
+            ];
           }
-        ]
-      };
-    });
-  });
+        });
+
+        setClients(Array.from(clientMap.values()));
+      } catch (err) {
+        console.error('Error fetching clients data:', err);
+        setError('Failed to load clients data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClientsData();
+  }, []);
 
   // Filter and sort clients
   const filteredAndSortedClients = clients

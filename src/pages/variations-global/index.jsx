@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { entities, getProjectById, getUserById } from '../../data/store';
+import { apiClient } from '../../data/api';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
@@ -8,18 +8,27 @@ import Icon from '../../components/AppIcon';
 const VariationsGlobal = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
+  const [allVariations, setAllVariations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Get all variations across all projects
-  const allVariations = entities.variationRequests.map(variation => {
-    const project = getProjectById(variation.projectId);
-    const createdBy = getUserById(variation.createdByUserId);
-    
-    return {
-      ...variation,
-      project,
-      createdBy
+  // Fetch all variations from API
+  useEffect(() => {
+    const fetchAllVariations = async () => {
+      try {
+        setLoading(true);
+        const variations = await apiClient.getAllVariations();
+        setAllVariations(variations || []);
+      } catch (err) {
+        console.error('Error fetching variations:', err);
+        setError('Failed to load variations');
+      } finally {
+        setLoading(false);
+      }
     };
-  });
+
+    fetchAllVariations();
+  }, []);
 
   // Filter variations
   const filteredVariations = allVariations.filter(variation => {
