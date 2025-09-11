@@ -48,6 +48,13 @@ const ProfessionalSidebar = ({ isCollapsed = false, onToggleCollapse, notificati
       tooltip: 'Team and client management'
     },
     {
+      label: 'Branding',
+      path: '/branding',
+      icon: 'Palette',
+      tooltip: 'Customize brand colors and logo',
+      managerOnly: true // Only visible to managers
+    },
+    {
       label: 'Activity Log',
       path: '/activity-log',
       icon: 'Activity',

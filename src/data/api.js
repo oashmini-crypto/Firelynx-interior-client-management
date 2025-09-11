@@ -23,9 +23,15 @@ class ApiClient {
         console.log('🔄 API Request:', options.method || 'GET', endpoint, 'Full URL:', url);
       }
       
+      // Only set Content-Type if body is not FormData (let browser set it for FormData)
+      const defaultHeaders = {};
+      if (!(options.body instanceof FormData)) {
+        defaultHeaders['Content-Type'] = 'application/json';
+      }
+      
       const response = await fetch(url, {
         headers: {
-          'Content-Type': 'application/json',
+          ...defaultHeaders,
           ...options.headers,
         },
         ...options,
@@ -382,6 +388,44 @@ class ApiClient {
     });
     return response;
   }
+
+  // Branding Management API
+  async getBrandingSettings() {
+    const response = await this.request('/branding');
+    return response.success ? response.data : null;
+  }
+
+  async updateBrandingSettings(settings) {
+    const response = await this.request('/branding', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+    return response.success ? response.data : null;
+  }
+
+  async uploadLogo(logoFile) {
+    const formData = new FormData();
+    formData.append('logo', logoFile);
+    
+    const response = await this.request('/branding/logo', {
+      method: 'POST',
+      headers: {}, // Remove Content-Type to let browser set it for FormData
+      body: formData,
+    });
+    return response.success ? response.data : null;
+  }
+
+  async deleteLogo() {
+    const response = await this.request('/branding/logo', {
+      method: 'DELETE',
+    });
+    return response.success ? response.data : null;
+  }
+
+  async getBrandingPreview(type = 'invoice') {
+    const response = await this.request(`/branding/preview?type=${type}`);
+    return response.success ? response.data : null;
+  }
 }
 
 // Create singleton API client
@@ -434,6 +478,12 @@ export const {
   logout,
   getCurrentUser,
   resetPassword,
+  // Branding management functions
+  getBrandingSettings,
+  updateBrandingSettings,
+  uploadLogo,
+  deleteLogo,
+  getBrandingPreview,
 } = apiClient;
 
 export default apiClient;

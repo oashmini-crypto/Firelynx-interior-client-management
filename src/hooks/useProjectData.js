@@ -497,3 +497,62 @@ export const useLogout = () => {
     },
   });
 };
+
+// Branding management hooks
+export const useBrandingSettings = (options = {}) => {
+  return useQuery({
+    queryKey: ['branding', 'settings'],
+    queryFn: () => apiClient.getBrandingSettings(),
+    staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
+    ...options,
+  });
+};
+
+export const useUpdateBrandingSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (settings) => apiClient.updateBrandingSettings(settings),
+    onSuccess: (data) => {
+      // Update the branding settings cache
+      queryClient.setQueryData(['branding', 'settings'], data);
+      // Invalidate to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['branding', 'settings'] });
+    },
+  });
+};
+
+export const useUploadLogo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (logoFile) => apiClient.uploadLogo(logoFile),
+    onSuccess: (data) => {
+      // Update branding settings with new logo URL
+      queryClient.invalidateQueries({ queryKey: ['branding', 'settings'] });
+    },
+  });
+};
+
+export const useDeleteLogo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.deleteLogo(),
+    onSuccess: (data) => {
+      // Update branding settings to remove logo
+      queryClient.invalidateQueries({ queryKey: ['branding', 'settings'] });
+    },
+  });
+};
+
+export const useBrandingPreview = (type = 'invoice', options = {}) => {
+  return useQuery({
+    queryKey: ['branding', 'preview', type],
+    queryFn: () => apiClient.getBrandingPreview(type),
+    enabled: false, // Only fetch when explicitly requested
+    staleTime: 10000, // 10 seconds
+    ...options,
+  });
+};
