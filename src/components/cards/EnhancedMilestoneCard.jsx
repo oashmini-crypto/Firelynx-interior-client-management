@@ -277,6 +277,12 @@ const EnhancedMilestoneCard = ({
                         <span>{formatFileSize(file.size)}</span>
                         <span>•</span>
                         <span>{new Date(file.createdAt).toLocaleDateString()}</span>
+                        {file.uploaderName && (
+                          <>
+                            <span>•</span>
+                            <span>Uploaded by {file.uploaderName}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
