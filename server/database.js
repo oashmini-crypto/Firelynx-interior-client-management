@@ -16,7 +16,9 @@ const {
   json,
   uuid,
   pgEnum,
-  unique
+  unique,
+  index,
+  foreignKey
 } = require('drizzle-orm/pg-core');
 
 // Database connection pool
@@ -63,7 +65,7 @@ const users = pgTable('users', {
 
 const projects = pgTable('projects', {
   id: varchar('id', { length: 50 }).primaryKey(),
-  clientId: varchar('client_id', { length: 50 }).references(() => clients.id).notNull(),
+  clientId: varchar('client_id', { length: 50 }).references(() => clients.id, { onDelete: 'restrict' }).notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
   status: varchar('status', { length: 50 }).notNull().default('Planning'),
@@ -76,22 +78,30 @@ const projects = pgTable('projects', {
   completedDate: timestamp('completed_date'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for frequently queried columns
+  clientIdIdx: index('projects_client_id_idx').on(table.clientId),
+  statusIdx: index('projects_status_idx').on(table.status),
+  createdAtIdx: index('projects_created_at_idx').on(table.createdAt),
+}));
 
 const projectTeam = pgTable('project_team', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
-  userId: varchar('user_id', { length: 50 }).references(() => users.id).notNull(),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  userId: varchar('user_id', { length: 50 }).references(() => users.id, { onDelete: 'cascade' }).notNull(),
   role: varchar('role', { length: 100 }).notNull(),
   addedAt: timestamp('added_at').defaultNow()
 }, (table) => ({
   // Unique constraint: one user can only have one role per project
-  uniqueProjectUser: unique().on(table.projectId, table.userId)
+  uniqueProjectUser: unique().on(table.projectId, table.userId),
+  // Performance indexes
+  projectIdIdx: index('project_team_project_id_idx').on(table.projectId),
+  userIdIdx: index('project_team_user_id_idx').on(table.userId),
 }));
 
 const milestones = pgTable('milestones', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
   status: varchar('status', { length: 50 }).notNull().default('Pending'),
@@ -100,14 +110,19 @@ const milestones = pgTable('milestones', {
   completedDate: timestamp('completed_date'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for project-scoped queries
+  projectIdIdx: index('milestones_project_id_idx').on(table.projectId),
+  statusIdx: index('milestones_status_idx').on(table.status),
+  expectedDateIdx: index('milestones_expected_date_idx').on(table.expectedDate),
+}));
 
 const fileAssets = pgTable('file_assets', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
-  milestoneId: varchar('milestone_id', { length: 50 }).references(() => milestones.id),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  milestoneId: varchar('milestone_id', { length: 50 }).references(() => milestones.id, { onDelete: 'set null' }),
   ticketId: varchar('ticket_id', { length: 50 }),
-  uploadedByUserId: varchar('uploaded_by_user_id', { length: 50 }).references(() => users.id).notNull(),
+  uploadedByUserId: varchar('uploaded_by_user_id', { length: 50 }).references(() => users.id, { onDelete: 'restrict' }).notNull(),
   filename: varchar('filename', { length: 500 }).notNull(),
   originalName: varchar('original_name', { length: 500 }).notNull(),
   url: varchar('url', { length: 1000 }).notNull(),
@@ -116,7 +131,14 @@ const fileAssets = pgTable('file_assets', {
   size: integer('size').notNull(),
   visibility: varchar('visibility', { length: 50 }).notNull().default('Client'),
   createdAt: timestamp('created_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for project-scoped file queries
+  projectIdIdx: index('file_assets_project_id_idx').on(table.projectId),
+  milestoneIdIdx: index('file_assets_milestone_id_idx').on(table.milestoneId),
+  visibilityIdx: index('file_assets_visibility_idx').on(table.visibility),
+  uploadedByIdx: index('file_assets_uploaded_by_idx').on(table.uploadedByUserId),
+  createdAtIdx: index('file_assets_created_at_idx').on(table.createdAt),
+}));
 
 const milestoneFiles = pgTable('milestone_files', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
@@ -136,7 +158,7 @@ const milestoneFiles = pgTable('milestone_files', {
 
 const invoices = pgTable('invoices', {
   id: varchar('id', { length: 50 }).primaryKey(),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   issueDate: timestamp('issue_date').notNull(),
   dueDate: timestamp('due_date').notNull(),
@@ -151,7 +173,14 @@ const invoices = pgTable('invoices', {
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for project-scoped invoice queries
+  projectIdIdx: index('invoices_project_id_idx').on(table.projectId),
+  statusIdx: index('invoices_status_idx').on(table.status),
+  numberIdx: index('invoices_number_idx').on(table.number),
+  dueDateIdx: index('invoices_due_date_idx').on(table.dueDate),
+  issueDateIdx: index('invoices_issue_date_idx').on(table.issueDate),
+}));
 
 const approvalPackets = pgTable('approval_packets', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
@@ -196,7 +225,7 @@ const approvalFiles = pgTable('approval_files', {
 
 const variationRequests = pgTable('variation_requests', {
   id: varchar('id', { length: 50 }).primaryKey(),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   date: timestamp('date').notNull(),
   changeRequestor: varchar('change_requestor', { length: 255 }).notNull(),
@@ -224,12 +253,19 @@ const variationRequests = pgTable('variation_requests', {
   // Approval workflow fields
   submittedAt: timestamp('submitted_at'),
   decidedAt: timestamp('decided_at'),
-  decidedBy: varchar('decided_by', { length: 50 }).references(() => users.id),
+  decidedBy: varchar('decided_by', { length: 50 }).references(() => users.id, { onDelete: 'set null' }),
   clientComment: text('client_comment'),
-  invoiceId: varchar('invoice_id', { length: 50 }).references(() => invoices.id), // Link to generated invoice
+  invoiceId: varchar('invoice_id', { length: 50 }).references(() => invoices.id, { onDelete: 'set null' }), // Link to generated invoice
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for project-scoped variation queries
+  projectIdIdx: index('variations_project_id_idx').on(table.projectId),
+  statusIdx: index('variations_status_idx').on(table.status),
+  numberIdx: index('variations_number_idx').on(table.number),
+  priorityIdx: index('variations_priority_idx').on(table.priority),
+  submittedAtIdx: index('variations_submitted_at_idx').on(table.submittedAt),
+}));
 
 const variationFiles = pgTable('variation_files', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
@@ -249,19 +285,28 @@ const variationFiles = pgTable('variation_files', {
 
 const tickets = pgTable('tickets', {
   id: varchar('id', { length: 50 }).primaryKey(),
-  projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
+  projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   subject: varchar('subject', { length: 255 }).notNull(),
   description: text('description').notNull(),
   category: varchar('category', { length: 100 }).notNull(),
   priority: varchar('priority', { length: 50 }).notNull().default('Medium'),
   status: varchar('status', { length: 50 }).notNull().default('Open'),
-  assigneeUserId: varchar('assignee_user_id', { length: 50 }).references(() => users.id),
-  requesterUserId: varchar('requester_user_id', { length: 50 }).references(() => users.id).notNull(),
+  assigneeUserId: varchar('assignee_user_id', { length: 50 }).references(() => users.id, { onDelete: 'set null' }),
+  requesterUserId: varchar('requester_user_id', { length: 50 }).references(() => users.id, { onDelete: 'restrict' }).notNull(),
   attachments: json('attachments'), // Array of file asset IDs
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for project-scoped ticket queries
+  projectIdIdx: index('tickets_project_id_idx').on(table.projectId),
+  statusIdx: index('tickets_status_idx').on(table.status),
+  priorityIdx: index('tickets_priority_idx').on(table.priority),
+  categoryIdx: index('tickets_category_idx').on(table.category),
+  assigneeIdx: index('tickets_assignee_idx').on(table.assigneeUserId),
+  requesterIdx: index('tickets_requester_idx').on(table.requesterUserId),
+  numberIdx: index('tickets_number_idx').on(table.number),
+}));
 
 const brandingSettings = pgTable('branding_settings', {
   id: varchar('id', { length: 50 }).primaryKey(),
