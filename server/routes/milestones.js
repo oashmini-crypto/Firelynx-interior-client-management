@@ -171,7 +171,7 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
     
     const {
       projectId,
-      uploadedBy = '7b024117-7298-4768-9260-7e6beb4209c7', // Default to Alice Cooper
+      uploadedBy = 'd6dba3c8-0ff1-4cdf-888c-5e28fdbfd5a9', // Default to Alice Cooper (actual ID from database)
       visibility = 'client'
     } = req.body;
     
