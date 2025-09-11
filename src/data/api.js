@@ -196,6 +196,13 @@ class ApiClient {
     return response;
   }
 
+  async sendApproval(id) {
+    const response = await this.request(`/approvals/${id}/send`, {
+      method: 'POST',
+    });
+    return response;
+  }
+
   // PDF generation
   async generateVariationPdf(variationId) {
     const response = await fetch(`${this.baseUrl}/pdf/variation/${variationId}`, {

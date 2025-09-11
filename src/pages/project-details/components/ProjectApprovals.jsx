@@ -190,13 +190,16 @@ const ProjectApprovals = ({ projectId }) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
-  const handleSendApproval = (approval) => {
-    setApprovals(approvals?.map(a =>
-      a?.id === approval?.id
-        ? { ...a, status: 'Sent', sentAt: new Date()?.toISOString()?.split('T')?.[0] }
-        : a
-    ));
-    console.log('Approval sent successfully');
+  const handleSendApproval = async (approval) => {
+    try {
+      await apiClient.sendApproval(approval.id);
+      console.log('Approval sent successfully');
+      // Reload approvals to get updated data from server
+      await loadApprovals();
+    } catch (error) {
+      console.error('Error sending approval:', error);
+      alert('Failed to send approval. Please try again.');
+    }
   };
 
   const handleViewApproval = (approval) => {
@@ -349,7 +352,7 @@ const ProjectApprovals = ({ projectId }) => {
 
                 {/* Quick Actions */}
                 <div className="flex items-center space-x-2">
-                  {approval?.status === 'Draft' && (
+                  {approval?.status === 'Pending' && (
                     <Button
                       variant="outline"
                       size="sm"
