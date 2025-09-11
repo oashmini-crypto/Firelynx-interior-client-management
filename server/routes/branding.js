@@ -7,6 +7,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
+const { v4: uuidv4 } = require('uuid');
 const { db, brandingSettings } = require('../database');
 const { eq } = require('drizzle-orm');
 
@@ -58,6 +59,7 @@ async function getBrandingSettings() {
       const defaultSettings = await db
         .insert(brandingSettings)
         .values({
+          id: uuidv4(),
           appName: 'FireLynx',
           accentColor: '#4C6FFF',
           primaryTextColor: '#0F172A',
