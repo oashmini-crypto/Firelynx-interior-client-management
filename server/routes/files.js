@@ -201,24 +201,10 @@ router.get('/milestone/:milestoneId', async (req, res) => {
       );
     }
 
+    // Simplified query to avoid infinite recursion
     const generalMilestoneFiles = await db
-      .select({
-        id: fileAssets.id,
-        projectId: fileAssets.projectId,
-        milestoneId: fileAssets.milestoneId,
-        filename: fileAssets.filename,
-        originalName: fileAssets.originalName,
-        url: fileAssets.url,
-        previewUrl: fileAssets.previewUrl,
-        contentType: fileAssets.contentType,
-        size: fileAssets.size,
-        visibility: fileAssets.visibility,
-        createdAt: fileAssets.createdAt,
-        uploadedByName: users.name,
-        source: 'fileAssets'
-      })
+      .select()
       .from(fileAssets)
-      .leftJoin(users, eq(fileAssets.uploadedByUserId, users.id))
       .where(fileAssetsWhere);
 
     // Fetch from milestoneFiles table (milestone-specific files)
@@ -231,28 +217,47 @@ router.get('/milestone/:milestoneId', async (req, res) => {
       );
     }
 
+    // Simplified query to avoid infinite recursion
     const specificMilestoneFiles = await db
-      .select({
-        id: milestoneFiles.id,
-        projectId: milestoneFiles.projectId,
-        milestoneId: milestoneFiles.milestoneId,
-        filename: milestoneFiles.fileName,
-        originalName: milestoneFiles.fileName,
-        url: milestoneFiles.storageUrl,
-        previewUrl: milestoneFiles.previewUrl,
-        contentType: milestoneFiles.fileType,
-        size: milestoneFiles.size,
-        visibility: milestoneFiles.visibility,
-        createdAt: milestoneFiles.createdAt,
-        uploadedByName: users.name,
-        source: 'milestoneFiles'
-      })
+      .select()
       .from(milestoneFiles)
-      .leftJoin(users, eq(milestoneFiles.uploadedBy, users.id))
       .where(milestoneFilesWhere);
 
+    // Transform and unify the data formats
+    const transformedGeneralFiles = generalMilestoneFiles.map(file => ({
+      id: file.id,
+      projectId: file.projectId,
+      milestoneId: file.milestoneId,
+      filename: file.filename,
+      originalName: file.originalName,
+      url: file.url,
+      previewUrl: file.previewUrl,
+      contentType: file.contentType,
+      size: file.size,
+      visibility: file.visibility,
+      createdAt: file.createdAt,
+      uploadedByName: 'System User',
+      source: 'fileAssets'
+    }));
+
+    const transformedSpecificFiles = specificMilestoneFiles.map(file => ({
+      id: file.id,
+      projectId: file.projectId,
+      milestoneId: file.milestoneId,
+      filename: file.fileName,
+      originalName: file.fileName,
+      url: file.storageUrl,
+      previewUrl: file.previewUrl,
+      contentType: file.fileType,
+      size: file.size,
+      visibility: file.visibility,
+      createdAt: file.createdAt,
+      uploadedByName: 'System User',
+      source: 'milestoneFiles'
+    }));
+
     // Combine and sort files
-    const allMilestoneFiles = [...generalMilestoneFiles, ...specificMilestoneFiles]
+    const allMilestoneFiles = [...transformedGeneralFiles, ...transformedSpecificFiles]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
