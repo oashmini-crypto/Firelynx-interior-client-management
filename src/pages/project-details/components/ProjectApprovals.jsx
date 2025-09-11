@@ -17,6 +17,8 @@ const ProjectApprovals = ({ projectId }) => {
   const [showFileUploadModal, setShowFileUploadModal] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -117,6 +119,7 @@ const ProjectApprovals = ({ projectId }) => {
           dueDate: ''
         });
         setSelectedFiles([]);
+        setUploadedFiles([]);
         
         alert(`Approval packet ${response.data.data.number} created successfully!`);
       } else {
@@ -126,6 +129,65 @@ const ProjectApprovals = ({ projectId }) => {
       console.error('Error creating approval packet:', error);
       alert(error.message || 'Failed to create approval packet. Please try again.');
     }
+  };
+
+  // File upload handlers for Create Approval modal
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    addUploadedFiles(files);
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    
+    const files = Array.from(event.dataTransfer.files);
+    addUploadedFiles(files);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+  };
+
+  const addUploadedFiles = (files) => {
+    const validFiles = files.filter(file => {
+      // File type validation (same as backend)
+      const allowedTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      ];
+      
+      const allowedExtensions = ['.dwg', '.dxf', '.skp', '.3ds', '.max'];
+      const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+      
+      return allowedTypes.includes(file.type) || allowedExtensions.includes(fileExt);
+    });
+
+    const newFiles = validFiles.map(file => ({
+      id: crypto.randomUUID(),
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type || 'application/octet-stream'
+    }));
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeUploadedFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   const handleSendApproval = (approval) => {
@@ -386,29 +448,107 @@ const ProjectApprovals = ({ projectId }) => {
                   />
                 </div>
 
-                {/* File Selection */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Select Files to Include</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border border-border rounded-lg p-4">
-                    {availableFiles?.map((file) => (
-                      <div key={file?.id} className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md">
-                        <Checkbox
-                          checked={selectedFiles?.some(f => f?.id === file?.id)}
-                          onChange={() => handleFileToggle(file)}
-                        />
-                        <Icon name={file?.type === 'image' ? 'Image' : 'FileText'} size={16} />
-                        <span className="text-sm">{file?.name}</span>
+                {/* File Upload & Selection */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">Files to Include</h3>
+                  
+                  {/* File Upload Area */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Upload Files from Computer</h4>
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                        dragActive 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                    >
+                      <Icon name="Upload" size={48} className="mx-auto mb-4 text-muted-foreground" />
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Drop files here or click to browse</p>
+                        <p className="text-xs text-muted-foreground">
+                          Supports: Images, PDFs, Office docs, CAD files (.dwg, .dxf) • Max 50MB per file
+                        </p>
                       </div>
-                    ))}
-                    {availableFiles?.length === 0 && (
-                      <div className="col-span-2 text-center py-4 text-gray-500 text-sm">
-                        No existing files available. Upload files to the approval after creation.
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileSelect}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.dxf,.skp,.3ds,.max"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Uploaded Files Display */}
+                  {uploadedFiles.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-3 text-green-700">
+                        ✓ Files Ready to Upload ({uploadedFiles.length})
+                      </h4>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {uploadedFiles.map((file) => (
+                          <div key={file.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Icon 
+                                name={file.type.startsWith('image/') ? 'Image' : 'FileText'} 
+                                size={16} 
+                                className="text-green-600" 
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-green-800">{file.name}</p>
+                                <p className="text-xs text-green-600">{Math.round(file.size / 1024)} KB</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeUploadedFile(file.id)}
+                              iconName="X"
+                              className="text-green-700 hover:text-red-600"
+                            />
+                          </div>
+                        ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Existing Files Selection */}
+                  {availableFiles?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">Select from Existing Project Files</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto border border-border rounded-lg p-4">
+                        {availableFiles?.map((file) => (
+                          <div key={file?.id} className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md">
+                            <Checkbox
+                              checked={selectedFiles?.some(f => f?.id === file?.id)}
+                              onChange={() => handleFileToggle(file)}
+                            />
+                            <Icon name={file?.type === 'image' ? 'Image' : 'FileText'} size={16} />
+                            <span className="text-sm">{file?.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-text-secondary text-xs mt-2">
+                        Selected existing files: {selectedFiles?.length}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Summary */}
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">
+                      Total files: {uploadedFiles.length + selectedFiles.length}
+                      {uploadedFiles.length > 0 && ` (${uploadedFiles.length} new + ${selectedFiles.length} existing)`}
+                    </p>
+                    {uploadedFiles.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        New files will be uploaded after approval creation
+                      </p>
                     )}
                   </div>
-                  <p className="text-text-secondary text-sm mt-2">
-                    Selected: {selectedFiles?.length} files • You can upload additional files after creating the approval
-                  </p>
                 </div>
               </div>
 

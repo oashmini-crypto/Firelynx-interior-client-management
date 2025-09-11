@@ -149,7 +149,7 @@ const invoices = pgTable('invoices', {
 });
 
 const approvalPackets = pgTable('approval_packets', {
-  id: varchar('id', { length: 50 }).primaryKey(),
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   title: varchar('title', { length: 255 }).notNull(),
@@ -165,7 +165,7 @@ const approvalPackets = pgTable('approval_packets', {
 });
 
 const approvalItems = pgTable('approval_items', {
-  id: varchar('id', { length: 50 }).primaryKey(),
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
   packetId: varchar('packet_id', { length: 50 }).references(() => approvalPackets.id).notNull(),
   fileAssetId: varchar('file_asset_id', { length: 50 }).references(() => fileAssets.id).notNull(),
   decision: varchar('decision', { length: 50 }).default('Pending'),

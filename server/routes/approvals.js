@@ -445,6 +445,7 @@ router.post('/', async (req, res) => {
         const item = await db
           .insert(approvalItems)
           .values({
+            id: crypto.randomUUID(),
             packetId: approvalId,
             fileAssetId,
             decision: 'Pending'
