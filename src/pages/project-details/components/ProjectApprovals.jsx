@@ -449,14 +449,14 @@ const ProjectApprovals = ({ projectId }) => {
                 </div>
 
                 {/* File Upload & Selection */}
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Files to Include</h3>
                   
                   {/* File Upload Area */}
                   <div>
                     <h4 className="text-sm font-medium mb-3">Upload Files from Computer</h4>
                     <div
-                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         dragActive 
                           ? 'border-primary bg-primary/5' 
                           : 'border-border hover:border-primary/50'
@@ -465,7 +465,7 @@ const ProjectApprovals = ({ projectId }) => {
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                     >
-                      <Icon name="Upload" size={48} className="mx-auto mb-4 text-muted-foreground" />
+                      <Icon name="Upload" size={32} className="mx-auto mb-3 text-muted-foreground" />
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Drop files here or click to browse</p>
                         <p className="text-xs text-muted-foreground">
@@ -488,7 +488,7 @@ const ProjectApprovals = ({ projectId }) => {
                       <h4 className="text-sm font-medium mb-3 text-green-700">
                         ✓ Files Ready to Upload ({uploadedFiles.length})
                       </h4>
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                      <div className="space-y-2 max-h-24 overflow-y-auto">
                         {uploadedFiles.map((file) => (
                           <div key={file.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
                             <div className="flex items-center space-x-3">
@@ -519,7 +519,7 @@ const ProjectApprovals = ({ projectId }) => {
                   {availableFiles?.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium mb-3">Select from Existing Project Files</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto border border-border rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-32 overflow-y-auto border border-border rounded-lg p-3">
                         {availableFiles?.map((file) => (
                           <div key={file?.id} className="flex items-center space-x-3 p-2 hover:bg-muted rounded-md">
                             <Checkbox
