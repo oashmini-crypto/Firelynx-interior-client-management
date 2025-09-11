@@ -140,14 +140,11 @@ const FileUploadModal = ({
         formData.append('visibility', (milestoneId || approvalId) ? 'client' : 'Client'); // Use lowercase for milestone/approval API
         
         if (milestoneId) {
-          // For milestone uploads - use correct field name for milestone API
-          formData.append('uploadedBy', '27e256d0-401e-4c10-bcfe-299d2a12b691'); // Alice Cooper ID
+          // For milestone uploads - uploadedBy is resolved server-side
         } else if (approvalId) {
-          // For approval uploads - use correct field name for approval API
-          formData.append('uploadedBy', '27e256d0-401e-4c10-bcfe-299d2a12b691'); // Alice Cooper ID
+          // For approval uploads - uploadedBy is resolved server-side
         } else {
-          // For generic uploads - use file_assets field name
-          formData.append('uploadedByUserId', '27e256d0-401e-4c10-bcfe-299d2a12b691'); // Alice Cooper ID
+          // For generic uploads - uploadedByUserId is resolved server-side
           formData.append('milestoneId', milestoneId);
         }
 

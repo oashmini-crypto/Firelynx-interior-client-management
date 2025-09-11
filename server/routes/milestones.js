@@ -171,16 +171,25 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
     
     const {
       projectId,
-      uploadedBy = '27e256d0-401e-4c10-bcfe-299d2a12b691', // Default to Alice Cooper (correct ID after re-seed)
       visibility = 'client'
     } = req.body;
     
-    if (!projectId || !uploadedBy) {
+    if (!projectId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: projectId, uploadedBy'
+        error: 'Missing required field: projectId'
       });
     }
+    
+    // Resolve uploader server-side - get first user (in future this would be req.user.id from auth)
+    const uploaderResult = await db.select().from(users).limit(1);
+    if (uploaderResult.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'No users found in system - cannot determine uploader'
+      });
+    }
+    const uploadedBy = uploaderResult[0].id;
     
     if (!['client', 'internal'].includes(visibility)) {
       return res.status(400).json({
