@@ -456,7 +456,7 @@ const ProjectApprovals = ({ projectId }) => {
                   <div>
                     <h4 className="text-sm font-medium mb-3">Upload Files from Computer</h4>
                     <div
-                      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                      className={`relative overflow-hidden border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         dragActive 
                           ? 'border-primary bg-primary/5' 
                           : 'border-border hover:border-primary/50'
