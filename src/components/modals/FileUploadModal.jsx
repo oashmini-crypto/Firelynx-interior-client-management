@@ -144,8 +144,8 @@ const FileUploadModal = ({
         } else if (approvalId) {
           // For approval uploads - uploadedBy is resolved server-side
         } else {
-          // For generic uploads - uploadedByUserId is resolved server-side
-          formData.append('milestoneId', milestoneId);
+          // For generic uploads - uploadedBy is resolved server-side
+          // No additional parameters needed for generic uploads
         }
 
         // Update progress

@@ -125,14 +125,25 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Allow common file types including modern image formats
-    const allowedTypes = /jpeg|jpg|png|gif|webp|avif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedExtensions = /jpeg|jpg|png|gif|webp|avif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|dwg|dxf/;
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif',
+      'application/pdf',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv',
+      'application/octet-stream' // For CAD files like .dwg that might not have proper MIME types
+    ];
     
-    if (mimetype && extname) {
+    const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedMimeTypes.includes(file.mimetype);
+    
+    // Allow if either extension is valid (for files with generic MIME types) OR both match
+    if (extname || (mimetype && extname)) {
       return cb(null, true);
     } else {
-      cb(new Error('Invalid file type'));
+      cb(new Error(`Invalid file type: ${file.mimetype} (${file.originalname}). Allowed: ${allowedExtensions.source}`));
     }
   }
 });
