@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -93,6 +94,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -209,6 +211,8 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Route imports
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const projectScopedRoutes = require('./routes/project-scoped');
 const clientRoutes = require('./routes/clients');
@@ -230,6 +234,11 @@ const adminRoutes = require('./routes/admin');
 app.use('/', adminRoutes);
 
 // API Routes
+// Authentication routes (no auth required)
+app.use('/api/auth', authRoutes);
+// User management routes (auth required)
+app.use('/api/users', userRoutes);
+
 app.use('/api/projects', projectRoutes);
 // NEW: Project-scoped API architecture - all resources under /api/projects/:projectId/
 app.use('/api/projects/:projectId', projectScopedRoutes);
