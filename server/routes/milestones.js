@@ -171,7 +171,7 @@ router.post('/:mid/files', upload.array('files', 10), async (req, res) => {
     
     const {
       projectId,
-      uploadedBy = 'd6dba3c8-0ff1-4cdf-888c-5e28fdbfd5a9', // Default to Alice Cooper (actual ID from database)
+      uploadedBy = '27e256d0-401e-4c10-bcfe-299d2a12b691', // Default to Alice Cooper (correct ID after re-seed)
       visibility = 'client'
     } = req.body;
     
@@ -327,8 +327,8 @@ router.get('/', async (req, res) => {
       projectMilestones.map(async (milestone) => {
         const files = await db
           .select()
-          .from(fileAssets)
-          .where(eq(fileAssets.milestoneId, milestone.id));
+          .from(milestoneFiles)
+          .where(eq(milestoneFiles.milestoneId, milestone.id));
         
         return {
           ...milestone,
@@ -368,8 +368,8 @@ router.get('/project/:projectId', async (req, res) => {
       projectMilestones.map(async (milestone) => {
         const files = await db
           .select()
-          .from(fileAssets)
-          .where(eq(fileAssets.milestoneId, milestone.id));
+          .from(milestoneFiles)
+          .where(eq(milestoneFiles.milestoneId, milestone.id));
         
         return {
           ...milestone,
