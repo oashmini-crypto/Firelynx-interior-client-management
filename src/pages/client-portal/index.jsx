@@ -260,12 +260,15 @@ const ClientPortal = () => {
                       teamMembers.map((member) => (
                         <TeamMemberCard 
                           key={member.id}
-                          name={member.userName || member.userEmail}
-                          role={member.role || member.userRole}
-                          email={member.userEmail}
-                          phone={member.userPhone}
-                          specialization={member.specialization}
-                          isOnline={member.isOnline}
+                          member={{
+                            name: member.userName || member.userEmail,
+                            role: member.role || member.userRole,
+                            email: member.userEmail,
+                            phone: member.userPhone,
+                            specialization: member.specialization,
+                            isOnline: member.isOnline,
+                            avatar: member.avatar
+                          }}
                         />
                       ))
                     ) : (
