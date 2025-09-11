@@ -285,6 +285,103 @@ class ApiClient {
     });
     return response;
   }
+
+  // User management API methods
+  async getUsers() {
+    const response = await this.request('/users');
+    return response.success ? response.data : [];
+  }
+
+  async getUser(id) {
+    const response = await this.request(`/users/${id}`);
+    return response.success ? response.data : null;
+  }
+
+  async createUser(data) {
+    const response = await this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response;
+  }
+
+  async updateUser(id, data) {
+    const response = await this.request(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response;
+  }
+
+  async deleteUser(id) {
+    const response = await this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
+    return response;
+  }
+
+  async activateUser(id) {
+    const response = await this.request(`/users/${id}/activate`, {
+      method: 'POST',
+    });
+    return response;
+  }
+
+  async deactivateUser(id) {
+    const response = await this.request(`/users/${id}/deactivate`, {
+      method: 'POST',
+    });
+    return response;
+  }
+
+  async resetUserPassword(id, newPassword) {
+    const response = await this.request(`/users/${id}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword }),
+    });
+    return response;
+  }
+
+  async changeUserRole(id, newRole) {
+    const response = await this.request(`/users/${id}/role`, {
+      method: 'POST',
+      body: JSON.stringify({ role: newRole }),
+    });
+    return response;
+  }
+
+  // Authentication API methods
+  async login(email, password) {
+    const response = await this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      credentials: 'include', // Include cookies for authentication
+    });
+    return response;
+  }
+
+  async logout() {
+    const response = await this.request('/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return response;
+  }
+
+  async getCurrentUser() {
+    const response = await this.request('/auth/me', {
+      credentials: 'include',
+    });
+    return response.success ? response.data : null;
+  }
+
+  async resetPassword(email) {
+    const response = await this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    return response;
+  }
 }
 
 // Create singleton API client
@@ -322,6 +419,21 @@ export const {
   generateVariationPdf,
   generateInvoicePdf,
   generateApprovalPdf,
+  // User management functions
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  activateUser,
+  deactivateUser,
+  resetUserPassword,
+  changeUserRole,
+  // Authentication functions
+  login,
+  logout,
+  getCurrentUser,
+  resetPassword,
 } = apiClient;
 
 export default apiClient;

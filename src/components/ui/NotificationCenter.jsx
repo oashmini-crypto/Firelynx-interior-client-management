@@ -1,55 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Icon from '../AppIcon';
 import Button from './Button';
+
+// Sample notifications for demonstration - moved outside component to prevent recreation on every render
+const DEFAULT_NOTIFICATIONS = [
+  {
+    id: 1,
+    type: 'variation',
+    title: 'New Variation Request',
+    message: 'Kitchen cabinet modification requires approval',
+    timestamp: '2 minutes ago',
+    isRead: false,
+    priority: 'high'
+  },
+  {
+    id: 2,
+    type: 'ticket',
+    title: 'Support Ticket Updated',
+    message: 'Lighting fixture issue has been resolved',
+    timestamp: '15 minutes ago',
+    isRead: false,
+    priority: 'medium'
+  },
+  {
+    id: 3,
+    type: 'system',
+    title: 'Project Milestone',
+    message: 'Living room design phase completed',
+    timestamp: '1 hour ago',
+    isRead: true,
+    priority: 'low'
+  },
+  {
+    id: 4,
+    type: 'variation',
+    title: 'Variation Approved',
+    message: 'Bathroom tile selection has been approved',
+    timestamp: '2 hours ago',
+    isRead: true,
+    priority: 'medium'
+  }
+];
 
 const NotificationCenter = ({ notifications = [], onMarkAsRead, onMarkAllAsRead, className = "" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Sample notifications for demonstration
-  const defaultNotifications = [
-    {
-      id: 1,
-      type: 'variation',
-      title: 'New Variation Request',
-      message: 'Kitchen cabinet modification requires approval',
-      timestamp: '2 minutes ago',
-      isRead: false,
-      priority: 'high'
-    },
-    {
-      id: 2,
-      type: 'ticket',
-      title: 'Support Ticket Updated',
-      message: 'Lighting fixture issue has been resolved',
-      timestamp: '15 minutes ago',
-      isRead: false,
-      priority: 'medium'
-    },
-    {
-      id: 3,
-      type: 'system',
-      title: 'Project Milestone',
-      message: 'Living room design phase completed',
-      timestamp: '1 hour ago',
-      isRead: true,
-      priority: 'low'
-    },
-    {
-      id: 4,
-      type: 'variation',
-      title: 'Variation Approved',
-      message: 'Bathroom tile selection has been approved',
-      timestamp: '2 hours ago',
-      isRead: true,
-      priority: 'medium'
-    }
-  ];
-
-  const allNotifications = notifications?.length > 0 ? notifications : defaultNotifications;
+  // Use useMemo to prevent unnecessary recalculations and ensure stable reference
+  const allNotifications = useMemo(() => {
+    return notifications?.length > 0 ? notifications : DEFAULT_NOTIFICATIONS;
+  }, [notifications]);
 
   useEffect(() => {
-    const count = allNotifications?.filter(notification => !notification?.isRead)?.length;
+    const count = allNotifications?.filter(notification => !notification?.isRead)?.length || 0;
     setUnreadCount(count);
   }, [allNotifications]);
 

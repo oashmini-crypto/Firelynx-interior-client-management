@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ProfessionalSidebar from '../../components/ui/ProfessionalSidebar';
 import NotificationCenter from '../../components/ui/NotificationCenter';
 import UserMetricsPanel from './components/UserMetricsPanel';
@@ -8,16 +8,73 @@ import CreateUserModal from './components/CreateUserModal';
 import UserProfileModal from './components/UserProfileModal';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
+import { 
+  useUsers, 
+  useCreateUser, 
+  useUpdateUser, 
+  useDeleteUser, 
+  useActivateUser, 
+  useDeactivateUser, 
+  useChangeUserRole, 
+  useResetUserPassword 
+} from '../../hooks/useProjectData';
+
+// Stable empty object reference to prevent re-renders
+const EMPTY_FILTERS = {};
 
 const UserManagement = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilters, setActiveFilters] = useState({});
+  const [activeFilters, setActiveFilters] = useState(EMPTY_FILTERS);
+
+  // API hooks for user management - with error fallback to mock data for development
+  const { data: apiUsers = [], isLoading, error } = useUsers();
+  
+  // Stable mock data reference to prevent infinite loops
+  const MOCK_USERS = useMemo(() => [
+    {
+      id: '1',
+      name: "Sarah Johnson",
+      email: "sarah.johnson@firelynx.com",
+      role: "admin",
+      status: "active",
+      department: "management",
+      createdAt: "2023-01-15T00:00:00.000Z"
+    },
+    {
+      id: '2', 
+      name: "Michael Rodriguez",
+      email: "michael.rodriguez@firelynx.com", 
+      role: "manager",
+      status: "active", 
+      department: "design",
+      createdAt: "2023-03-22T00:00:00.000Z"
+    },
+    {
+      id: '3',
+      name: "Emily Chen",
+      email: "emily.chen@firelynx.com",
+      role: "designer", 
+      status: "active",
+      department: "design",
+      createdAt: "2023-05-10T00:00:00.000Z" 
+    }
+  ], []);
+  
+  // Use API data if available, otherwise fall back to mock data (stable reference)
+  const users = useMemo(() => {
+    return (apiUsers.length > 0 || !error) ? apiUsers : MOCK_USERS;
+  }, [apiUsers, error, MOCK_USERS]);
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
+  const activateUserMutation = useActivateUser();
+  const deactivateUserMutation = useDeactivateUser();
+  const changeRoleMutation = useChangeUserRole();
+  const resetPasswordMutation = useResetUserPassword();
 
   // Mock notification counts
   const notificationCounts = {
@@ -25,100 +82,17 @@ const UserManagement = () => {
     tickets: 7
   };
 
-  // Initialize with default users
-  useEffect(() => {
-    const defaultUsers = [
-      {
-        id: 1,
-        name: "Sarah Johnson",
-        email: "sarah.johnson@firelynx.com",
-        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
-        role: "manager",
-        department: "management",
-        skills: ["Project Management", "Client Relations", "Team Leadership"],
-        utilization: 85,
-        status: "active",
-        joinDate: "2023-01-15",
-        lastActive: "2025-01-06"
-      },
-      {
-        id: 2,
-        name: "Michael Rodriguez",
-        email: "michael.rodriguez@firelynx.com",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-        role: "designer",
-        department: "design",
-        skills: ["Interior Design", "3D Modeling", "Space Planning"],
-        utilization: 92,
-        status: "active",
-        joinDate: "2023-03-22",
-        lastActive: "2025-01-06"
-      },
-      {
-        id: 3,
-        name: "Emily Chen",
-        email: "emily.chen@firelynx.com",
-        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-        role: "designer",
-        department: "design",
-        skills: ["Color Theory", "Furniture Selection", "Lighting Design"],
-        utilization: 78,
-        status: "active",
-        joinDate: "2023-05-10",
-        lastActive: "2025-01-05"
-      },
-      {
-        id: 4,
-        name: "David Thompson",
-        email: "david.thompson@client.com",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-        role: "client",
-        department: "external",
-        skills: ["Business Development", "Real Estate"],
-        utilization: 0,
-        status: "active",
-        joinDate: "2024-02-18",
-        lastActive: "2025-01-04"
-      },
-      {
-        id: 5,
-        name: "Lisa Wang",
-        email: "lisa.wang@firelynx.com",
-        avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
-        role: "designer",
-        department: "design",
-        skills: ["Sustainable Design", "Material Selection", "CAD"],
-        utilization: 88,
-        status: "active",
-        joinDate: "2023-08-14",
-        lastActive: "2025-01-06"
-      },
-      {
-        id: 6,
-        name: "James Wilson",
-        email: "james.wilson@firelynx.com",
-        avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face",
-        role: "manager",
-        department: "operations",
-        skills: ["Operations Management", "Quality Control", "Process Optimization"],
-        utilization: 75,
-        status: "inactive",
-        joinDate: "2022-11-30",
-        lastActive: "2024-12-20"
-      }
-    ];
+  // Filter users based on search and filters using useMemo to prevent infinite loops
+  const filteredUsers = useMemo(() => {
+    if (!users || !Array.isArray(users)) {
+      return [];
+    }
 
-    setUsers(defaultUsers);
-    setFilteredUsers(defaultUsers);
-  }, []);
-
-  // Filter users based on search and filters
-  useEffect(() => {
     let filtered = [...users];
 
     // Apply search filter
     if (searchTerm) {
-      filtered = filtered?.filter(user =>
+      filtered = filtered.filter(user =>
         user?.name?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
         user?.email?.toLowerCase()?.includes(searchTerm?.toLowerCase()) ||
         user?.skills?.some(skill => skill?.toLowerCase()?.includes(searchTerm?.toLowerCase()))
@@ -127,30 +101,35 @@ const UserManagement = () => {
 
     // Apply other filters
     if (activeFilters?.role) {
-      filtered = filtered?.filter(user => user?.role === activeFilters?.role);
+      filtered = filtered.filter(user => user?.role === activeFilters?.role);
     }
 
     if (activeFilters?.department) {
-      filtered = filtered?.filter(user => user?.department === activeFilters?.department);
+      filtered = filtered.filter(user => user?.department === activeFilters?.department);
     }
 
     if (activeFilters?.status) {
-      filtered = filtered?.filter(user => user?.status === activeFilters?.status);
+      filtered = filtered.filter(user => user?.status === activeFilters?.status);
     }
 
     if (activeFilters?.skill) {
-      filtered = filtered?.filter(user =>
+      filtered = filtered.filter(user =>
         user?.skills?.some(skill => 
           skill?.toLowerCase()?.replace(/\s+/g, '-') === activeFilters?.skill
         )
       );
     }
 
-    setFilteredUsers(filtered);
+    return filtered;
   }, [users, searchTerm, activeFilters]);
 
-  const handleCreateUser = (newUser) => {
-    setUsers(prev => [...prev, newUser]);
+  const handleCreateUser = async (newUser) => {
+    try {
+      await createUserMutation.mutateAsync(newUser);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create user:', error);
+    }
   };
 
   const handleEditUser = (user) => {
@@ -158,60 +137,82 @@ const UserManagement = () => {
     setIsProfileModalOpen(true);
   };
 
-  const handleDeleteUser = (user) => {
+  const handleDeleteUser = async (user) => {
     if (window.confirm(`Are you sure you want to delete ${user?.name}?`)) {
-      setUsers(prev => prev?.filter(u => u?.id !== user?.id));
+      try {
+        await deleteUserMutation.mutateAsync(user.id);
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+      }
     }
   };
 
-  const handleToggleStatus = (user) => {
-    const newStatus = user?.status === 'active' ? 'inactive' : 'active';
-    setUsers(prev => prev?.map(u => 
-      u?.id === user?.id ? { ...u, status: newStatus } : u
-    ));
+  const handleToggleStatus = async (user) => {
+    try {
+      if (user?.status === 'active') {
+        await deactivateUserMutation.mutateAsync(user.id);
+      } else {
+        await activateUserMutation.mutateAsync(user.id);
+      }
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+    }
   };
 
-  // Add this block - missing handler for role changes
-  const handleChangeRole = (user, newRole) => {
-    setUsers(prev => prev?.map(u => 
-      u?.id === user?.id ? { ...u, role: newRole } : u
-    ));
+  const handleChangeRole = async (user, newRole) => {
+    try {
+      await changeRoleMutation.mutateAsync({ userId: user.id, newRole });
+    } catch (error) {
+      console.error('Failed to change user role:', error);
+    }
   };
 
-  const handleFiltersChange = (filters) => {
+  const handleFiltersChange = useCallback((filters) => {
     setActiveFilters(filters);
-  };
+  }, []);
 
-  const handleSearch = (term) => {
+  const handleSearch = useCallback((term) => {
     setSearchTerm(term);
-  };
+  }, []);
 
-  const handleClearFilters = () => {
-    setActiveFilters({});
+  const handleClearFilters = useCallback(() => {
+    setActiveFilters(EMPTY_FILTERS);
     setSearchTerm('');
-  };
+  }, []);
 
-  // Calculate metrics
-  const metrics = {
-    totalUsers: users?.length,
-    activeUsers: users?.filter(u => u?.status === 'active')?.length,
-    roleDistribution: {
-      managers: users?.filter(u => u?.role === 'manager')?.length,
-      designers: users?.filter(u => u?.role === 'designer')?.length,
-      clients: users?.filter(u => u?.role === 'client')?.length
-    },
-    departmentAllocation: {
-      design: users?.filter(u => u?.department === 'design')?.length,
-      management: users?.filter(u => u?.department === 'management')?.length,
-      operations: users?.filter(u => u?.department === 'operations')?.length,
-      sales: users?.filter(u => u?.department === 'sales')?.length
-    },
-    utilizationStats: {
-      high: users?.filter(u => u?.utilization >= 90)?.length,
-      medium: users?.filter(u => u?.utilization >= 70 && u?.utilization < 90)?.length,
-      low: users?.filter(u => u?.utilization < 70)?.length
+  // Calculate metrics with useMemo to prevent recalculation on every render
+  const metrics = useMemo(() => {
+    if (!users || !Array.isArray(users)) {
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        roleDistribution: { managers: 0, designers: 0, clients: 0 },
+        departmentAllocation: { design: 0, management: 0, operations: 0, sales: 0 },
+        utilizationStats: { high: 0, medium: 0, low: 0 }
+      };
     }
-  };
+
+    return {
+      totalUsers: users.length,
+      activeUsers: users.filter(u => u?.status === 'active').length,
+      roleDistribution: {
+        managers: users.filter(u => u?.role === 'manager').length,
+        designers: users.filter(u => u?.role === 'designer').length,
+        clients: users.filter(u => u?.role === 'client').length
+      },
+      departmentAllocation: {
+        design: users.filter(u => u?.department === 'design').length,
+        management: users.filter(u => u?.department === 'management').length,
+        operations: users.filter(u => u?.department === 'operations').length,
+        sales: users.filter(u => u?.department === 'sales').length
+      },
+      utilizationStats: {
+        high: users.filter(u => u?.utilization >= 90).length,
+        medium: users.filter(u => u?.utilization >= 70 && u?.utilization < 90).length,
+        low: users.filter(u => u?.utilization < 70).length
+      }
+    };
+  }, [users]);
 
   return (
     <div className="min-h-screen bg-background">

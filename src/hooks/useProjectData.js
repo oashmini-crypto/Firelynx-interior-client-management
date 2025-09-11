@@ -22,6 +22,10 @@ export const queryKeys = {
   allApprovals: ['approvals'],
   clients: ['clients'],
   client: (id) => ['clients', id],
+  // User management query keys
+  users: ['users'],
+  user: (id) => ['users', id],
+  currentUser: ['auth', 'me'],
 };
 
 // Core project hooks with polling for real-time sync
@@ -318,6 +322,178 @@ export const useDeleteClient = () => {
     onSuccess: () => {
       // Immediately invalidate client queries
       invalidateClients();
+    },
+  });
+};
+
+// User management hooks
+export const useUsers = (options = {}) => {
+  return useQuery({
+    queryKey: queryKeys.users,
+    queryFn: () => apiClient.getUsers(),
+    refetchInterval: false, // Disable polling to prevent auth error loops
+    refetchOnWindowFocus: false, // Disable refetch on window focus
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    retry: (failureCount, error) => {
+      // Don't retry auth errors
+      if (error?.message?.includes('Access token required') ||
+          error?.response?.status === 401 ||
+          error?.status === 401) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    ...options,
+  });
+};
+
+export const useUser = (userId, options = {}) => {
+  return useQuery({
+    queryKey: queryKeys.user(userId),
+    queryFn: () => apiClient.getUser(userId),
+    enabled: !!userId,
+    refetchInterval: false, // Disable polling
+    refetchOnWindowFocus: false, // Disable refetch on window focus  
+    staleTime: 30000,
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('Access token required') ||
+          error?.response?.status === 401 ||
+          error?.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    ...options,
+  });
+};
+
+export const useCurrentUser = (options = {}) => {
+  return useQuery({
+    queryKey: queryKeys.currentUser,
+    queryFn: () => apiClient.getCurrentUser(),
+    refetchInterval: 30000, // Less frequent for current user
+    refetchOnWindowFocus: true,
+    staleTime: 15000,
+    retry: false, // Don't retry if not authenticated
+    ...options,
+  });
+};
+
+// User mutation hooks
+export const useCreateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userData) => apiClient.createUser(userData),
+    onSuccess: () => {
+      // Invalidate users list after creating a new user
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+    },
+  });
+};
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }) => apiClient.updateUser(id, data),
+    onSuccess: (data, variables) => {
+      // Invalidate both the users list and specific user
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      if (variables.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.user(variables.id) });
+      }
+    },
+  });
+};
+
+export const useDeleteUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId) => apiClient.deleteUser(userId),
+    onSuccess: () => {
+      // Invalidate users list after deletion
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+    },
+  });
+};
+
+export const useActivateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId) => apiClient.activateUser(userId),
+    onSuccess: (data, userId) => {
+      // Invalidate both users list and specific user
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(userId) });
+    },
+  });
+};
+
+export const useDeactivateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId) => apiClient.deactivateUser(userId),
+    onSuccess: (data, userId) => {
+      // Invalidate both users list and specific user
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(userId) });
+    },
+  });
+};
+
+export const useResetUserPassword = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, newPassword }) => apiClient.resetUserPassword(userId, newPassword),
+    onSuccess: (data, variables) => {
+      // Invalidate specific user data after password reset
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(variables.userId) });
+    },
+  });
+};
+
+export const useChangeUserRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, newRole }) => apiClient.changeUserRole(userId, newRole),
+    onSuccess: (data, variables) => {
+      // Invalidate both users list and specific user
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      queryClient.invalidateQueries({ queryKey: queryKeys.user(variables.userId) });
+    },
+  });
+};
+
+// Authentication hooks
+export const useLogin = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ email, password }) => apiClient.login(email, password),
+    onSuccess: () => {
+      // Invalidate current user query to refetch after login
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentUser });
+    },
+  });
+};
+
+export const useLogout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.logout(),
+    onSuccess: () => {
+      // Clear all cached data on logout
+      queryClient.clear();
     },
   });
 };
