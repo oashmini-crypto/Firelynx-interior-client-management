@@ -72,8 +72,9 @@ const ClientMilestoneCard = ({ milestone, projectId }) => {
 
   const handleFileDownload = (file) => {
     const link = document.createElement('a');
-    link.href = file.storageUrl;
-    link.download = file.fileName;
+    // Use the best available URL for download
+    link.href = file.url || file.storageUrl || file.previewUrl;
+    link.download = file.fileName || file.originalName || file.filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -14,9 +14,12 @@ const FilePreviewModal = ({
 
   if (!isOpen || !file) return null;
 
-  const isImage = file.fileType?.startsWith('image/');
-  const isPDF = file.fileType === 'application/pdf';
-  const isDWG = file.fileName?.toLowerCase().endsWith('.dwg');
+  const fileType = file.contentType || file.fileType;
+  const fileName = file.fileName || file.originalName || file.filename;
+  
+  const isImage = fileType?.startsWith('image/');
+  const isPDF = fileType === 'application/pdf';
+  const isDWG = fileName?.toLowerCase().endsWith('.dwg');
   
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -26,15 +29,15 @@ const FilePreviewModal = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (fileType, fileName) => {
-    const ext = fileName?.toLowerCase().split('.').pop();
+  const getFileIcon = (contentType, filename) => {
+    const ext = filename?.toLowerCase().split('.').pop();
     
-    if (fileType?.startsWith('image/')) return 'Image';
-    if (fileType === 'application/pdf') return 'FileText';
+    if (contentType?.startsWith('image/')) return 'Image';
+    if (contentType === 'application/pdf') return 'FileText';
     if (ext === 'dwg') return 'Layers';
-    if (fileType?.includes('word') || ext === 'doc' || ext === 'docx') return 'FileText';
-    if (fileType?.includes('excel') || ext === 'xls' || ext === 'xlsx') return 'FileSpreadsheet';
-    if (fileType?.includes('powerpoint') || ext === 'ppt' || ext === 'pptx') return 'Presentation';
+    if (contentType?.includes('word') || ext === 'doc' || ext === 'docx') return 'FileText';
+    if (contentType?.includes('excel') || ext === 'xls' || ext === 'xlsx') return 'FileSpreadsheet';
+    if (contentType?.includes('powerpoint') || ext === 'ppt' || ext === 'pptx') return 'Presentation';
     return 'File';
   };
 
@@ -44,8 +47,9 @@ const FilePreviewModal = ({
     } else {
       // Default download behavior
       const link = document.createElement('a');
-      link.href = file.storageUrl;
-      link.download = file.fileName;
+      // Use the best available URL for download
+      link.href = file.url || file.storageUrl || file.previewUrl;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -53,7 +57,7 @@ const FilePreviewModal = ({
   };
 
   const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete "${file.fileName}"?`)) {
+    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
       if (onDelete) {
         await onDelete(file);
         onClose();
@@ -66,8 +70,8 @@ const FilePreviewModal = ({
       return (
         <div className="flex items-center justify-center bg-black/5 rounded-lg overflow-hidden">
           <img
-            src={file.previewUrl || file.storageUrl}
-            alt={file.fileName}
+            src={file.previewUrl || file.url || file.storageUrl}
+            alt={fileName}
             className="max-w-full max-h-96 object-contain"
             onLoad={() => setLoading(false)}
             onError={() => {
@@ -83,9 +87,9 @@ const FilePreviewModal = ({
       return (
         <div className="bg-gray-100 rounded-lg overflow-hidden" style={{ height: '500px' }}>
           <iframe
-            src={file.storageUrl}
+            src={file.url || file.storageUrl || file.previewUrl}
             className="w-full h-full border-0"
-            title={file.fileName}
+            title={fileName}
             onLoad={() => setLoading(false)}
             onError={() => {
               setError(true);
@@ -121,7 +125,7 @@ const FilePreviewModal = ({
     // For other file types
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-muted rounded-lg">
-        <Icon name={getFileIcon(file.fileType, file.fileName)} size={64} className="text-muted-foreground mb-4" />
+        <Icon name={getFileIcon(fileType, fileName)} size={64} className="text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium text-card-foreground mb-2">
           Preview unavailable
         </h3>
@@ -148,18 +152,18 @@ const FilePreviewModal = ({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <Icon 
-                name={getFileIcon(file.fileType, file.fileName)} 
+                name={getFileIcon(fileType, fileName)} 
                 size={24} 
                 className="text-muted-foreground" 
               />
               <div>
                 <h2 className="text-lg font-semibold text-card-foreground">
-                  {file.fileName}
+                  {fileName}
                 </h2>
                 <div className="flex items-center space-x-4 text-sm text-text-secondary">
                   <span>{formatFileSize(file.size)}</span>
                   <span>•</span>
-                  <span>Uploaded by {file.uploaderName || 'Unknown'}</span>
+                  <span>Uploaded by {file.uploadedByName || file.uploaderName || 'Unknown'}</span>
                   <span>•</span>
                   <span>{new Date(file.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -234,7 +238,7 @@ const FilePreviewModal = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-text-secondary">File Name:</span>
-                <span className="ml-2 text-card-foreground font-medium">{file.fileName}</span>
+                <span className="ml-2 text-card-foreground font-medium">{fileName}</span>
               </div>
               <div>
                 <span className="text-text-secondary">File Size:</span>
@@ -242,7 +246,7 @@ const FilePreviewModal = ({
               </div>
               <div>
                 <span className="text-text-secondary">File Type:</span>
-                <span className="ml-2 text-card-foreground font-medium">{file.fileType}</span>
+                <span className="ml-2 text-card-foreground font-medium">{fileType}</span>
               </div>
               <div>
                 <span className="text-text-secondary">Visibility:</span>

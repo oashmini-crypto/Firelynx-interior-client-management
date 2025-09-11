@@ -107,6 +107,7 @@ const fileAssets = pgTable('file_assets', {
   filename: varchar('filename', { length: 500 }).notNull(),
   originalName: varchar('original_name', { length: 500 }).notNull(),
   url: varchar('url', { length: 1000 }).notNull(),
+  previewUrl: varchar('preview_url', { length: 1000 }),
   contentType: varchar('content_type', { length: 100 }).notNull(),
   size: integer('size').notNull(),
   visibility: varchar('visibility', { length: 50 }).notNull().default('Client'),

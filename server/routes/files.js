@@ -3,38 +3,82 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
-const { db, fileAssets, users } = require('../database');
+const { db, fileAssets, users, milestoneFiles } = require('../database');
 const { eq, and, desc } = require('drizzle-orm');
 
-// Helper function to generate thumbnail for images
-async function generateThumbnail(filePath, filename) {
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = 'uploads/';
+    await fs.mkdir(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'files-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+    files: 10 // Max 10 files per upload
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types
+    const allowedMimeTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv'
+    ];
+    
+    const allowedExtensions = ['.dwg', '.dxf', '.skp', '.3ds', '.max'];
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed'), false);
+    }
+  }
+});
+
+// Helper function to generate preview for images (consistent with milestones)
+async function generatePreview(filePath, fileName, fileType) {
   try {
-    const ext = path.extname(filename).toLowerCase();
-    if (!['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-      return null; // Not an image
+    const ext = path.extname(fileName).toLowerCase();
+    
+    // For images - create preview
+    if (['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(fileType)) {
+      const previewDir = 'uploads/previews/';
+      await fs.mkdir(previewDir, { recursive: true });
+      
+      const previewFileName = 'preview_' + fileName.replace(/\.[^/.]+$/, '.jpg');
+      const previewPath = path.join(previewDir, previewFileName);
+      
+      await sharp(filePath)
+        .resize(400, 300, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({ quality: 85 })
+        .toFile(previewPath);
+      
+      return `/uploads/previews/${previewFileName}`;
     }
     
-    const thumbnailDir = 'uploads/thumbnails/';
-    await fs.mkdir(thumbnailDir, { recursive: true });
-    
-    const thumbnailFilename = 'thumb_' + filename.replace(/\.[^/.]+$/, '.jpg');
-    const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
-    
-    await sharp(filePath)
-      .resize(200, 200, {
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .jpeg({ quality: 85 })
-      .toFile(thumbnailPath);
-    
-    return `/uploads/thumbnails/${thumbnailFilename}`;
+    return null;
   } catch (error) {
-    console.error('Error generating thumbnail:', error);
+    console.error('Error generating preview:', error);
     return null;
   }
 }
@@ -50,23 +94,23 @@ async function getFileSize(filePath) {
   }
 }
 
-// GET /api/files/project/:projectId - Get all files for project
+// GET /api/files/project/:projectId - Get all files for project (includes milestone files)
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { visibility } = req.query;
     
-    let whereClause = eq(fileAssets.projectId, projectId);
-    
-    // Filter by visibility if specified
-    if (visibility && ['Client', 'Internal'].includes(visibility)) {
-      whereClause = and(
+    // Fetch files from fileAssets table
+    let fileAssetsWhere = eq(fileAssets.projectId, projectId);
+    if (visibility) {
+      const normalizedVisibility = visibility.toLowerCase() === 'client' ? 'Client' : 'Internal';
+      fileAssetsWhere = and(
         eq(fileAssets.projectId, projectId),
-        eq(fileAssets.visibility, visibility)
+        eq(fileAssets.visibility, normalizedVisibility)
       );
     }
     
-    const projectFiles = await db
+    const generalFiles = await db
       .select({
         id: fileAssets.id,
         projectId: fileAssets.projectId,
@@ -75,22 +119,59 @@ router.get('/project/:projectId', async (req, res) => {
         filename: fileAssets.filename,
         originalName: fileAssets.originalName,
         url: fileAssets.url,
+        previewUrl: fileAssets.previewUrl, // Use actual previewUrl field
         contentType: fileAssets.contentType,
         size: fileAssets.size,
         visibility: fileAssets.visibility,
         createdAt: fileAssets.createdAt,
         uploadedByName: users.name,
-        uploadedByEmail: users.email
+        uploadedByEmail: users.email,
+        source: 'fileAssets'
       })
       .from(fileAssets)
       .leftJoin(users, eq(fileAssets.uploadedByUserId, users.id))
-      .where(whereClause)
-      .orderBy(desc(fileAssets.createdAt));
+      .where(fileAssetsWhere);
+
+    // Fetch files from milestoneFiles table
+    let milestoneFilesWhere = eq(milestoneFiles.projectId, projectId);
+    if (visibility) {
+      const normalizedVisibility = visibility.toLowerCase();
+      milestoneFilesWhere = and(
+        eq(milestoneFiles.projectId, projectId),
+        eq(milestoneFiles.visibility, normalizedVisibility)
+      );
+    }
+    
+    const milestoneFilesList = await db
+      .select({
+        id: milestoneFiles.id,
+        projectId: milestoneFiles.projectId,
+        milestoneId: milestoneFiles.milestoneId,
+        ticketId: null, // Not applicable for milestone files
+        filename: milestoneFiles.fileName,
+        originalName: milestoneFiles.fileName,
+        url: milestoneFiles.storageUrl,
+        previewUrl: milestoneFiles.previewUrl,
+        contentType: milestoneFiles.fileType,
+        size: milestoneFiles.size,
+        visibility: milestoneFiles.visibility,
+        createdAt: milestoneFiles.createdAt,
+        uploadedByName: users.name,
+        uploadedByEmail: users.email,
+        source: 'milestoneFiles'
+      })
+      .from(milestoneFiles)
+      .leftJoin(users, eq(milestoneFiles.uploadedBy, users.id))
+      .where(milestoneFilesWhere);
+
+    // Combine and sort all files
+    const allFiles = [...generalFiles, ...milestoneFilesList]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
       success: true,
-      data: projectFiles,
-      count: projectFiles.length
+      data: allFiles,
+      count: allFiles.length
     });
   } catch (error) {
     console.error('Error fetching project files:', error);
@@ -101,12 +182,23 @@ router.get('/project/:projectId', async (req, res) => {
   }
 });
 
-// GET /api/files/milestone/:milestoneId - Get files for milestone
+// GET /api/files/milestone/:milestoneId - Get files for milestone (unified from both tables)
 router.get('/milestone/:milestoneId', async (req, res) => {
   try {
     const { milestoneId } = req.params;
+    const { visibility } = req.query;
     
-    const milestoneFiles = await db
+    // Fetch from fileAssets table (general files associated with milestone)
+    let fileAssetsWhere = eq(fileAssets.milestoneId, milestoneId);
+    if (visibility) {
+      const normalizedVisibility = visibility.toLowerCase() === 'client' ? 'Client' : 'Internal';
+      fileAssetsWhere = and(
+        eq(fileAssets.milestoneId, milestoneId),
+        eq(fileAssets.visibility, normalizedVisibility)
+      );
+    }
+
+    const generalMilestoneFiles = await db
       .select({
         id: fileAssets.id,
         projectId: fileAssets.projectId,
@@ -114,21 +206,56 @@ router.get('/milestone/:milestoneId', async (req, res) => {
         filename: fileAssets.filename,
         originalName: fileAssets.originalName,
         url: fileAssets.url,
+        previewUrl: fileAssets.previewUrl,
         contentType: fileAssets.contentType,
         size: fileAssets.size,
         visibility: fileAssets.visibility,
         createdAt: fileAssets.createdAt,
-        uploadedByName: users.name
+        uploadedByName: users.name,
+        source: 'fileAssets'
       })
       .from(fileAssets)
       .leftJoin(users, eq(fileAssets.uploadedByUserId, users.id))
-      .where(eq(fileAssets.milestoneId, milestoneId))
-      .orderBy(desc(fileAssets.createdAt));
+      .where(fileAssetsWhere);
+
+    // Fetch from milestoneFiles table (milestone-specific files)
+    let milestoneFilesWhere = eq(milestoneFiles.milestoneId, milestoneId);
+    if (visibility) {
+      const normalizedVisibility = visibility.toLowerCase();
+      milestoneFilesWhere = and(
+        eq(milestoneFiles.milestoneId, milestoneId),
+        eq(milestoneFiles.visibility, normalizedVisibility)
+      );
+    }
+
+    const specificMilestoneFiles = await db
+      .select({
+        id: milestoneFiles.id,
+        projectId: milestoneFiles.projectId,
+        milestoneId: milestoneFiles.milestoneId,
+        filename: milestoneFiles.fileName,
+        originalName: milestoneFiles.fileName,
+        url: milestoneFiles.storageUrl,
+        previewUrl: milestoneFiles.previewUrl,
+        contentType: milestoneFiles.fileType,
+        size: milestoneFiles.size,
+        visibility: milestoneFiles.visibility,
+        createdAt: milestoneFiles.createdAt,
+        uploadedByName: users.name,
+        source: 'milestoneFiles'
+      })
+      .from(milestoneFiles)
+      .leftJoin(users, eq(milestoneFiles.uploadedBy, users.id))
+      .where(milestoneFilesWhere);
+
+    // Combine and sort files
+    const allMilestoneFiles = [...generalMilestoneFiles, ...specificMilestoneFiles]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
       success: true,
-      data: milestoneFiles,
-      count: milestoneFiles.length
+      data: allMilestoneFiles,
+      count: allMilestoneFiles.length
     });
   } catch (error) {
     console.error('Error fetching milestone files:', error);
@@ -140,7 +267,7 @@ router.get('/milestone/:milestoneId', async (req, res) => {
 });
 
 // POST /api/files/upload - Upload files
-router.post('/upload', async (req, res) => {
+router.post('/upload', upload.array('files', 10), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
@@ -164,10 +291,12 @@ router.post('/upload', async (req, res) => {
       });
     }
     
-    if (!['Client', 'Internal'].includes(visibility)) {
+    // Normalize and validate visibility (case-insensitive)
+    const normalizedVisibility = visibility.charAt(0).toUpperCase() + visibility.slice(1).toLowerCase();
+    if (!['Client', 'Internal'].includes(normalizedVisibility)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid visibility. Must be "Client" or "Internal"'
+        error: 'Invalid visibility. Must be "Client" or "Internal" (case-insensitive)'
       });
     }
     
@@ -175,8 +304,8 @@ router.post('/upload', async (req, res) => {
     
     for (const file of req.files) {
       try {
-        // Generate thumbnail for images
-        const thumbnailUrl = await generateThumbnail(file.path, file.filename);
+        // Generate preview for images
+        const previewUrl = await generatePreview(file.path, file.originalname, file.mimetype);
         
         // Get actual file size
         const fileSize = await getFileSize(file.path);
@@ -192,15 +321,16 @@ router.post('/upload', async (req, res) => {
             filename: file.filename,
             originalName: file.originalname,
             url: `/uploads/${file.filename}`,
+            previewUrl: previewUrl, // Store the actual generated previewUrl
             contentType: file.mimetype,
             size: fileSize,
-            visibility
+            visibility: normalizedVisibility
           })
           .returning();
         
         uploadedFiles.push({
           ...fileAsset[0],
-          thumbnailUrl
+          previewUrl
         });
       } catch (fileError) {
         console.error(`Error processing file ${file.originalname}:`, fileError);
@@ -229,16 +359,18 @@ router.put('/:fileId/visibility', async (req, res) => {
     const { fileId } = req.params;
     const { visibility } = req.body;
     
-    if (!['Client', 'Internal'].includes(visibility)) {
+    // Normalize and validate visibility (case-insensitive)
+    const normalizedVisibility = visibility.charAt(0).toUpperCase() + visibility.slice(1).toLowerCase();
+    if (!['Client', 'Internal'].includes(normalizedVisibility)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid visibility. Must be "Client" or "Internal"'
+        error: 'Invalid visibility. Must be "Client" or "Internal" (case-insensitive)'
       });
     }
     
     const updatedFile = await db
       .update(fileAssets)
-      .set({ visibility })
+      .set({ visibility: normalizedVisibility })
       .where(eq(fileAssets.id, fileId))
       .returning();
     
@@ -252,7 +384,7 @@ router.put('/:fileId/visibility', async (req, res) => {
     res.json({
       success: true,
       data: updatedFile[0],
-      message: `File visibility updated to ${visibility}`
+      message: `File visibility updated to ${normalizedVisibility}`
     });
   } catch (error) {
     console.error('Error updating file visibility:', error);

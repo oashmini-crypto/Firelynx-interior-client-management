@@ -66,7 +66,8 @@ const FileLibrary = ({ files, loading }) => {
   const handleDownload = async (file) => {
     try {
       const link = document.createElement('a');
-      link.href = file.url;
+      // Use the best available URL for download
+      link.href = file.url || file.storageUrl || file.previewUrl;
       link.download = file.originalName || file.filename;
       document.body.appendChild(link);
       link.click();
@@ -78,7 +79,9 @@ const FileLibrary = ({ files, loading }) => {
 
   const handlePreview = (file) => {
     if (file.contentType?.startsWith('image/') || file.contentType?.includes('pdf')) {
-      window.open(file.url, '_blank');
+      // Use preview URL if available, fallback to url or storageUrl
+      const previewUrl = file.previewUrl || file.url || file.storageUrl;
+      window.open(previewUrl, '_blank');
     }
   };
 
@@ -136,10 +139,16 @@ const FileLibrary = ({ files, loading }) => {
               <div className="h-48 bg-gray-100 relative group">
                 {file.contentType?.startsWith('image/') ? (
                   <img
-                    src={file.url}
+                    src={file.previewUrl || file.url || file.storageUrl}
                     alt={file.originalName || file.filename}
                     className="w-full h-full object-cover cursor-pointer"
                     onClick={() => handlePreview(file)}
+                    onError={(e) => {
+                      // Fallback to main URL if preview fails
+                      if (e.target.src !== (file.url || file.storageUrl)) {
+                        e.target.src = file.url || file.storageUrl;
+                      }
+                    }}
                   />
                 ) : (
                   <div
