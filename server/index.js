@@ -277,13 +277,20 @@ async function startServer() {
     if (dbConnection) {
       console.log('✅ Database initialized successfully');
       
-      // Seed demo data in development if database is available
+      // Seed demo data in development only if database is empty
       if (process.env.NODE_ENV !== 'production') {
         try {
-          console.log('🌱 Seeding comprehensive demo data...');
-          const { seedComprehensiveData } = require('./comprehensive-seeds');
-          await seedComprehensiveData();
-          console.log('✅ Comprehensive demo data seeded successfully');
+          const { db, users } = require('./database');
+          const existingUsers = await db.select().from(users).limit(1);
+          
+          if (existingUsers.length === 0) {
+            console.log('🌱 Database empty - seeding comprehensive demo data...');
+            const { seedComprehensiveData } = require('./comprehensive-seeds');
+            await seedComprehensiveData();
+            console.log('✅ Comprehensive demo data seeded successfully');
+          } else {
+            console.log('✅ Database has existing data - skipping seed');
+          }
         } catch (seedError) {
           console.log('⚠️  Seed data failed, continuing with existing data');
           console.error(seedError);
