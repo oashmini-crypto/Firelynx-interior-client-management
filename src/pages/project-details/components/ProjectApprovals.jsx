@@ -4,6 +4,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import Icon from '../../../components/AppIcon';
+import FileUploadModal from '../../../components/modals/FileUploadModal';
 
 const ProjectApprovals = ({ projectId }) => {
   const [approvals, setApprovals] = useState([]);
@@ -13,6 +14,7 @@ const ProjectApprovals = ({ projectId }) => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFileUploadModal, setShowFileUploadModal] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [formData, setFormData] = useState({
@@ -138,6 +140,18 @@ const ProjectApprovals = ({ projectId }) => {
   const handleViewApproval = (approval) => {
     setSelectedApproval(approval);
     setShowDetailModal(true);
+  };
+
+  const handleUploadToApproval = (approval) => {
+    setSelectedApproval(approval);
+    setShowFileUploadModal(true);
+  };
+
+  const handleFileUploadSuccess = async (uploadedFiles) => {
+    console.log('Files uploaded to approval successfully:', uploadedFiles);
+    setShowFileUploadModal(false);
+    // Refresh approvals to show new files
+    await loadApprovals();
   };
 
   const handleDeleteApproval = (approval) => {
@@ -455,27 +469,52 @@ const ProjectApprovals = ({ projectId }) => {
                   </div>
                 </div>
 
-                {/* Items */}
+                {/* Files Section */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Approval Items</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Approval Files</h3>
+                    {(selectedApproval?.status === 'Draft' || selectedApproval?.status === 'Sent') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUploadToApproval(selectedApproval)}
+                        iconName="Upload"
+                      >
+                        Upload Files
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-3">
                     {selectedApproval?.items?.map((item) => (
                       <div key={item?.id} className="p-4 border border-border rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center space-x-3">
-                            <Icon name="FileText" size={16} />
-                            <span className="font-medium">{item?.fileName}</span>
+                            <Icon name={item?.contentType?.startsWith('image/') ? 'Image' : 'FileText'} size={16} />
+                            <span className="font-medium">{item?.filename || item?.originalName || item?.fileName}</span>
+                            <span className="text-text-secondary text-sm">
+                              ({Math.round(item?.size / 1024)} KB)
+                            </span>
                           </div>
-                          <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                            item?.decision === 'Approved' ? 'text-green-600 bg-green-100' :
-                            item?.decision === 'Declined'? 'text-red-600 bg-red-100' : 'text-gray-600 bg-gray-100'
-                          }`}>
-                            {item?.decision}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(item?.url, '_blank')}
+                              iconName="Eye"
+                            >
+                              View
+                            </Button>
+                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                              item?.decision === 'Approved' ? 'text-green-600 bg-green-100' :
+                              item?.decision === 'Declined'? 'text-red-600 bg-red-100' : 'text-gray-600 bg-gray-100'
+                            }`}>
+                              {item?.decision || 'Pending'}
+                            </span>
+                          </div>
                         </div>
                         {item?.comment && (
                           <div className="mt-2 p-2 bg-muted rounded text-sm">
-                            <strong>Comment:</strong> {item?.comment}
+                            <strong>Client Comment:</strong> {item?.comment}
                           </div>
                         )}
                         {item?.decidedAt && (
@@ -485,12 +524,31 @@ const ProjectApprovals = ({ projectId }) => {
                         )}
                       </div>
                     ))}
+                    {(!selectedApproval?.items || selectedApproval?.items?.length === 0) && (
+                      <div className="text-center py-8 text-text-secondary">
+                        <Icon name="Upload" size={48} className="mx-auto mb-3 opacity-50" />
+                        <p>No files uploaded yet</p>
+                        <p className="text-sm">Upload files to include in this approval packet</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* File Upload Modal for Approvals */}
+      {showFileUploadModal && selectedApproval && (
+        <FileUploadModal
+          isOpen={showFileUploadModal}
+          onClose={() => setShowFileUploadModal(false)}
+          onUpload={handleFileUploadSuccess}
+          approvalId={selectedApproval.id}
+          projectId={projectId}
+          title={`Upload Files to ${selectedApproval.title}`}
+        />
       )}
     </div>
   );
