@@ -46,9 +46,15 @@ const clients = pgTable('clients', {
   phone: varchar('phone', { length: 50 }),
   company: varchar('company', { length: 255 }),
   address: text('address'),
+  status: varchar('status', { length: 20 }).notNull().default('active'), // active, inactive
+  primaryContactUserId: varchar('primary_contact_user_id', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for client queries
+  statusIdx: index('clients_status_idx').on(table.status),
+  emailIdx: index('clients_email_idx').on(table.email),
+}));
 
 const users = pgTable('users', {
   id: varchar('id', { length: 50 }).primaryKey(),
@@ -59,9 +65,35 @@ const users = pgTable('users', {
   specialization: varchar('specialization', { length: 255 }),
   avatar: varchar('avatar', { length: 500 }),
   isOnline: boolean('is_online').default(false),
+  
+  // Authentication fields
+  passwordHash: text('password_hash'), // Store hashed password
+  status: varchar('status', { length: 20 }).notNull().default('active'), // active, inactive, suspended, pending
+  lastLoginAt: timestamp('last_login_at'),
+  failedLoginAttempts: integer('failed_login_attempts').default(0),
+  lockedUntil: timestamp('locked_until'),
+  
+  // Client relationship
+  clientId: varchar('client_id', { length: 50 }).references(() => clients.id, { onDelete: 'set null' }),
+  
+  // Password reset functionality
+  resetToken: varchar('reset_token', { length: 128 }),
+  resetTokenExpires: timestamp('reset_token_expires'),
+  
+  // Email verification
+  emailVerifiedAt: timestamp('email_verified_at'),
+  
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
-});
+}, (table) => ({
+  // Performance indexes for authentication and queries
+  emailIdx: index('users_email_idx').on(table.email),
+  statusIdx: index('users_status_idx').on(table.status),
+  clientIdIdx: index('users_client_id_idx').on(table.clientId),
+  roleIdx: index('users_role_idx').on(table.role),
+  lastLoginIdx: index('users_last_login_idx').on(table.lastLoginAt),
+  resetTokenIdx: index('users_reset_token_idx').on(table.resetToken),
+}));
 
 const projects = pgTable('projects', {
   id: varchar('id', { length: 50 }).primaryKey(),
