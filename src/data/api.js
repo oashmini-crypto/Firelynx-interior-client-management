@@ -3,24 +3,47 @@
  * 
  * Replaces client-side mock store with real backend API calls.
  * Ensures frontend and backend use same UUIDs for proper integration.
+ * Phase 2: Multi-tenant support with dynamic API base URLs
  */
 
 // API Configuration - Use relative path for Vite proxy
 const API_BASE_URL = '/api';
 
-// Create API client with error handling
+// Import tenant context for dynamic API paths
+let getTenantContext = null;
+
+// Initialize tenant context getter (to avoid circular dependency)
+export const initializeTenantContext = (contextGetter) => {
+  getTenantContext = contextGetter;
+};
+
+// Create API client with tenant-aware error handling
 class ApiClient {
   constructor(baseUrl = API_BASE_URL) {
-    this.baseUrl = baseUrl;
+    this.defaultBaseUrl = baseUrl;
+  }
+
+  // Get the appropriate base URL based on tenant context
+  getBaseUrl() {
+    if (getTenantContext) {
+      const tenantInfo = getTenantContext();
+      return tenantInfo?.apiBasePath || this.defaultBaseUrl;
+    }
+    return this.defaultBaseUrl;
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
+    const baseUrl = this.getBaseUrl();
+    const url = `${baseUrl}${endpoint}`;
     
     try {
       // Development logging only
       if (process.env.NODE_ENV === 'development') {
-        console.log('🔄 API Request:', options.method || 'GET', endpoint, 'Full URL:', url);
+        const tenantInfo = getTenantContext ? getTenantContext() : null;
+        const logPrefix = tenantInfo?.tenant && tenantInfo.tenant !== 'default' 
+          ? `🏢 [${tenantInfo.tenant}]` 
+          : '🔄';
+        console.log(`${logPrefix} API Request:`, options.method || 'GET', endpoint, 'Full URL:', url);
       }
       
       // Only set Content-Type if body is not FormData (let browser set it for FormData)
