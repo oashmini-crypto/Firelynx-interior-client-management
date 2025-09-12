@@ -233,6 +233,7 @@ const variationRoutes = require('./routes/variations');
 const ticketRoutes = require('./routes/tickets');
 const fileRoutes = require('./routes/files');
 const brandingRoutes = require('./routes/branding');
+const tenantRoutes = require('./routes/tenant');
 const pdfRoutes = require('./routes/pdf-generation');
 const pdfHtmlRoutes = require('./routes/pdf-html');
 const activityLogRoutes = require('./routes/activity-logs');
@@ -260,6 +261,7 @@ app.use('/api/variations', variationRoutes);
 app.use('/api/variations', require('./routes/variation-files'));
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/files', upload.array('files', 10), fileRoutes);
+app.use('/api/settings', tenantRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/pdf', pdfHtmlRoutes); // New HTML-based PDF generation
 app.use('/api/pdf-legacy', pdfRoutes); // Legacy PDFKit-based generation
@@ -280,6 +282,7 @@ app.use('/tenant/:tenantSlug/api/variations', variationRoutes);
 app.use('/tenant/:tenantSlug/api/variations', require('./routes/variation-files'));
 app.use('/tenant/:tenantSlug/api/tickets', ticketRoutes);
 app.use('/tenant/:tenantSlug/api/files', upload.array('files', 10), fileRoutes);
+app.use('/tenant/:tenantSlug/api/settings', tenantRoutes);
 app.use('/tenant/:tenantSlug/api/branding', brandingRoutes);
 app.use('/tenant/:tenantSlug/api/pdf', pdfHtmlRoutes);
 app.use('/tenant/:tenantSlug/api/pdf-legacy', pdfRoutes);
