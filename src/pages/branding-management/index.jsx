@@ -12,6 +12,7 @@ import {
   useUploadLogo,
   useDeleteLogo 
 } from '../../hooks/useProjectData';
+import { useNotificationCounts } from '../../hooks/useNotificationCounts';
 
 const BrandingManagement = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -24,11 +25,8 @@ const BrandingManagement = () => {
   const uploadLogoMutation = useUploadLogo();
   const deleteLogoMutation = useDeleteLogo();
 
-  // Mock notification counts
-  const notificationCounts = {
-    variations: 3,
-    tickets: 7
-  };
+  // Get real notification counts
+  const { notificationCounts } = useNotificationCounts();
 
   // Initialize local settings when server data loads
   useEffect(() => {
