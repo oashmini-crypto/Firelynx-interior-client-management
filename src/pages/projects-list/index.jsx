@@ -153,6 +153,12 @@ const ProjectsList = () => {
     }
   });
 
+  // Calculate selection state for visible projects only
+  const visibleProjectIds = filteredProjects?.map(p => p?.id) || [];
+  const visibleSelectedCount = selectedProjects?.filter(id => visibleProjectIds?.includes(id))?.length || 0;
+  const allVisibleSelected = visibleProjectIds?.length > 0 && visibleSelectedCount === visibleProjectIds?.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && visibleSelectedCount < visibleProjectIds?.length;
+
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
@@ -235,7 +241,7 @@ const ProjectsList = () => {
     if (selectedProjects?.length === 0) return;
     
     try {
-      // Update each selected project via API
+      // Update each selected project via API (all selected projects, including hidden ones)
       const updatePromises = selectedProjects.map(projectId => 
         apiUpdateProject(projectId, { 
           status, 
@@ -249,7 +255,7 @@ const ProjectsList = () => {
       setSelectedProjects([]);
       refetchProjects();
       
-      console.log(`Updated ${selectedProjects.length} projects to ${status}`);
+      console.log(`Updated ${selectedProjects.length} projects to ${status} (${visibleSelectedCount} visible, ${selectedProjects.length - visibleSelectedCount} hidden)`);
     } catch (error) {
       console.error('Error updating projects:', error);
       // TODO: Show error toast to user
@@ -265,10 +271,15 @@ const ProjectsList = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedProjects?.length === filteredProjects?.length) {
-      setSelectedProjects([]);
+    if (allVisibleSelected) {
+      // Deselect all visible projects, but keep hidden selections
+      setSelectedProjects(prev => prev?.filter(id => !visibleProjectIds?.includes(id)));
     } else {
-      setSelectedProjects(filteredProjects?.map(p => p?.id));
+      // Select all visible projects, preserve existing hidden selections
+      setSelectedProjects(prev => {
+        const hiddenSelections = prev?.filter(id => !visibleProjectIds?.includes(id)) || [];
+        return [...hiddenSelections, ...visibleProjectIds];
+      });
     }
   };
 
@@ -418,7 +429,8 @@ const ProjectsList = () => {
               {filteredProjects?.length > 0 && (
                 <div className="flex items-center space-x-3">
                   <Checkbox
-                    checked={selectedProjects?.length === filteredProjects?.length}
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected}
                     onChange={handleSelectAll}
                     label={`Select all (${filteredProjects?.length})`}
                   />
@@ -426,7 +438,12 @@ const ProjectsList = () => {
                   {selectedProjects?.length > 0 && (
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-text-secondary">
-                        {selectedProjects?.length} selected
+                        {visibleSelectedCount} of {selectedProjects?.length} selected
+                        {selectedProjects?.length !== visibleSelectedCount && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({selectedProjects?.length - visibleSelectedCount} hidden)
+                          </span>
+                        )}
                       </span>
                       <Select
                         placeholder="Bulk Actions"
