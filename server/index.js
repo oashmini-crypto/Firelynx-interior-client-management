@@ -162,9 +162,15 @@ const { seedDemoData } = require('./seeds');
 
 // Diagnostics middleware
 const { diagnostics, diagnosticsMiddleware } = require('./middleware/diagnostics');
+// Authentication middleware
+const { addTenantContext } = require('./middleware/auth');
 
 // Enable diagnostics for all API routes
 app.use('/api', diagnosticsMiddleware);
+
+// TEMPORARY: Add tenant context to all API routes for multi-tenant conversion
+// This forces default tenant ID until subdomain/path-based tenant resolution is implemented
+app.use('/api', addTenantContext);
 
 // Add diagnostic endpoints
 const diagnosticsEndpoints = require('./diagnostics-endpoints');

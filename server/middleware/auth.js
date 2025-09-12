@@ -179,11 +179,29 @@ const requireManagerOrAdmin = requireRole('admin', 'manager');
 // Staff authorization (admin, manager, designer)
 const requireStaff = requireRole('admin', 'manager', 'designer');
 
+// TEMPORARY: Tenant context middleware for multi-tenant conversion
+// Forces default tenant ID until subdomain/path-based tenant resolution is implemented
+const addTenantContext = (req, res, next) => {
+  // Default tenant ID (will be replaced with proper tenant resolution)
+  const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+  
+  // Add tenant context to all requests
+  req.tenantId = DEFAULT_TENANT_ID;
+  
+  // Also add to user object if it exists
+  if (req.user) {
+    req.user.tenantId = DEFAULT_TENANT_ID;
+  }
+  
+  next();
+};
+
 module.exports = {
   authenticateToken,
   optionalAuth,
   requireRole,
   requireAdmin,
   requireManagerOrAdmin,
-  requireStaff
+  requireStaff,
+  addTenantContext
 };
