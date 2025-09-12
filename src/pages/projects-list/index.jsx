@@ -231,16 +231,29 @@ const ProjectsList = () => {
     }
   };
 
-  const handleBulkStatusUpdate = (status) => {
+  const handleBulkStatusUpdate = async (status) => {
     if (selectedProjects?.length === 0) return;
     
-    setProjects(projects?.map(p => 
-      selectedProjects?.includes(p?.id) 
-        ? { ...p, status, lastActivity: new Date()?.toISOString()?.split('T')?.[0] }
-        : p
-    ));
-    setSelectedProjects([]);
-    console.log(`Updated ${selectedProjects?.length} projects to ${status}`);
+    try {
+      // Update each selected project via API
+      const updatePromises = selectedProjects.map(projectId => 
+        apiUpdateProject(projectId, { 
+          status, 
+          lastActivity: new Date().toISOString()
+        })
+      );
+      
+      await Promise.all(updatePromises);
+      
+      // Clear selection and refetch to get updated data
+      setSelectedProjects([]);
+      refetchProjects();
+      
+      console.log(`Updated ${selectedProjects.length} projects to ${status}`);
+    } catch (error) {
+      console.error('Error updating projects:', error);
+      // TODO: Show error toast to user
+    }
   };
 
   const handleProjectToggle = (projectId) => {
