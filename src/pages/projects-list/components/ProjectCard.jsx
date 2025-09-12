@@ -89,7 +89,7 @@ const ProjectCard = ({
           <div onClick={handleSelectClick}>
             <Checkbox
               checked={isSelected}
-              onChange={() => {}}
+              onChange={handleSelectClick}
             />
           </div>
 
@@ -188,7 +188,7 @@ const ProjectCard = ({
         <div onClick={handleSelectClick}>
           <Checkbox
             checked={isSelected}
-            onChange={() => {}}
+            onChange={handleSelectClick}
           />
         </div>
         <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
