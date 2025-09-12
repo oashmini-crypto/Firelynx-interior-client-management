@@ -44,6 +44,7 @@ router.get('/', async (req, res) => {
     const allVariations = await db
       .select()
       .from(variationRequests)
+      .where(eq(variationRequests.tenantId, req.tenantId))
       .orderBy(desc(variationRequests.createdAt));
     
     res.json({
@@ -93,7 +94,7 @@ router.get('/:id', async (req, res) => {
     const variation = await db
       .select()
       .from(variationRequests)
-      .where(eq(variationRequests.id, id))
+      .where(and(eq(variationRequests.id, id), eq(variationRequests.tenantId, req.tenantId)))
       .limit(1);
     
     if (variation.length === 0) {

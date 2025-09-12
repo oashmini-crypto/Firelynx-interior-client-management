@@ -93,6 +93,7 @@ router.get('/', async (req, res) => {
     const allInvoices = await db
       .select()
       .from(invoices)
+      .where(eq(invoices.tenantId, req.tenantId))
       .orderBy(desc(invoices.createdAt));
     
     res.json({
