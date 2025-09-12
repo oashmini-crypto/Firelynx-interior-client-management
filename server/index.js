@@ -150,10 +150,11 @@ const upload = multer({
   }
 });
 
-// Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+// SECURITY: Removed public static file serving for uploads
+// All file access must go through authenticated, tenant-aware endpoints
+// app.use('/uploads', express.static('uploads')); // REMOVED - SECURITY RISK
 
-// Serve public files (for demo images and documents)
+// Serve public demo files (these are intentionally public for demos)
 app.use('/files', express.static('public/files'));
 
 // Database initialization

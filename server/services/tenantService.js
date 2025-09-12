@@ -40,8 +40,16 @@ class TenantService {
       tenantSlug = req.get('X-Tenant-Slug');
     }
 
-    // Method 4: Fallback to default for development/testing
+    // SECURITY: In production, all requests must have explicit tenant context
+    // No fallback to default tenant without proper identification
     if (!tenantSlug) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Tenant identification required - no subdomain, path, or header provided');
+      }
+      
+      // Development only: Allow fallback to default tenant for local testing
+      // This should never be reached in production deployments
+      console.warn('⚠️  SECURITY: Using default tenant fallback in development mode');
       tenantSlug = 'default';
     }
 

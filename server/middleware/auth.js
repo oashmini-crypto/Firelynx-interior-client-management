@@ -5,7 +5,16 @@ const jwt = require('jsonwebtoken');
 const { db, users } = require('../database');
 const { eq } = require('drizzle-orm');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+// SECURITY: JWT_SECRET must be provided via environment variable
+// Never use hardcoded fallbacks in production
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('🚨 CRITICAL SECURITY ERROR: JWT_SECRET environment variable is required');
+  console.error('   Set JWT_SECRET to a strong, randomly generated secret key');
+  console.error('   Example: JWT_SECRET="your-256-bit-secret-key-here"');
+  process.exit(1);
+}
 
 // Authentication middleware - verifies JWT token
 const authenticateToken = async (req, res, next) => {
