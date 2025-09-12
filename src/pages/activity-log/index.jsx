@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
 import { useProjects } from '../../hooks/useProjects';
+import { useNotificationCounts } from '../../hooks/useNotificationCounts';
 import { activityLogsAPI } from '../../services/api';
 
 const ActivityLog = () => {
@@ -37,6 +38,7 @@ const ActivityLog = () => {
   });
 
   const { projects } = useProjects();
+  const { notificationCounts } = useNotificationCounts();
 
   // Update time every minute
   useEffect(() => {
@@ -263,7 +265,7 @@ const ActivityLog = () => {
       <ProfessionalSidebar 
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={setIsSidebarCollapsed}
-        currentTime={currentTime}
+        notificationCounts={notificationCounts}
       />
 
       {/* Main Content */}

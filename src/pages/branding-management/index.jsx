@@ -134,9 +134,9 @@ const BrandingManagement = () => {
   return (
     <div className="flex h-screen bg-background">
       <ProfessionalSidebar
-        collapsed={sidebarCollapsed}
-        onToggle={setSidebarCollapsed}
-        activeItem="branding"
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={setSidebarCollapsed}
+        notificationCounts={notificationCounts}
       />
       
       <main className={`flex-1 overflow-hidden transition-all duration-300 ${
