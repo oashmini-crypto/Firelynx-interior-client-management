@@ -7,6 +7,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
+const fsConstants = require('fs').constants;
 const { db, tenants } = require('../database');
 const { eq, sql, and, ne } = require('drizzle-orm');
 const { authenticateToken } = require('../middleware/auth');
@@ -40,7 +41,14 @@ const validateTenantPath = (tenantId, filePath) => {
 };
 
 const safeDeleteTenantFile = async (tenantId, filePath) => {
-  const validation = validateTenantPath(tenantId, filePath);
+  // Convert API path to file system path if needed
+  let actualFilePath = filePath;
+  if (filePath && filePath.startsWith('/api/tenant/logo/')) {
+    const filename = filePath.replace('/api/tenant/logo/', '');
+    actualFilePath = `uploads/tenants/${tenantId}/logos/${filename}`;
+  }
+  
+  const validation = validateTenantPath(tenantId, actualFilePath);
   if (!validation.isValid) {
     console.warn(`Unsafe file deletion attempt: ${validation.error} for path: ${filePath}`);
     return false;
@@ -315,7 +323,7 @@ router.post('/logo', tenantLogoUpload.single('logo'), async (req, res) => {
       });
     }
 
-    let logoUrl = `/uploads/tenants/${req.user.tenantId}/logos/${req.file.filename}`;
+    let logoUrl = `/api/tenant/logo/${req.file.filename}`;
     
     // Optimize image if it's not SVG
     if (req.file.mimetype !== 'image/svg+xml') {
@@ -332,7 +340,7 @@ router.post('/logo', tenantLogoUpload.single('logo'), async (req, res) => {
       
       // Remove original file and use optimized version
       await fs.unlink(req.file.path);
-      logoUrl = `/uploads/tenants/${req.user.tenantId}/logos/${optimizedFilename}`;
+      logoUrl = `/api/tenant/logo/${optimizedFilename}`;
     }
 
     // Get current tenant settings
@@ -478,7 +486,7 @@ router.get('/logo/:filename', async (req, res) => {
     
     try {
       const fullPath = path.resolve('.', validation.safePath);
-      await fs.access(fullPath, fs.constants.R_OK);
+      await fs.access(fullPath, fsConstants.R_OK);
       
       // Set appropriate headers for image serving
       const ext = path.extname(filename).toLowerCase();
