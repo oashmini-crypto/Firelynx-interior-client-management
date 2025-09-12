@@ -3,7 +3,7 @@
 
 const jwt = require('jsonwebtoken');
 const { db, users } = require('../database');
-const { eq } = require('drizzle-orm');
+const { eq, sql } = require('drizzle-orm');
 
 // SECURITY: JWT_SECRET must be provided via environment variable
 // Never use hardcoded fallbacks in production
@@ -85,6 +85,17 @@ const authenticateToken = async (req, res, next) => {
       email: foundUser.email,
       role: foundUser.role
     };
+    
+    // Set tenant context for RLS policies
+    // This enables database-level tenant isolation
+    try {
+      await db.execute(
+        sql`SET LOCAL app.current_tenant_id = ${foundUser.tenantId}`
+      );
+    } catch (error) {
+      console.error('Failed to set tenant context:', error);
+      // Continue without failing - fallback to application-level filtering
+    }
     
     next();
     
