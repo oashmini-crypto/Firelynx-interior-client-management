@@ -168,9 +168,10 @@ const { addTenantContext } = require('./middleware/auth');
 // Enable diagnostics for all API routes
 app.use('/api', diagnosticsMiddleware);
 
-// TEMPORARY: Add tenant context to all API routes for multi-tenant conversion
-// This forces default tenant ID until subdomain/path-based tenant resolution is implemented
+// PHASE 2: Add tenant context to all API routes for multi-tenant conversion
+// Supports subdomain and path-based tenant resolution
 app.use('/api', addTenantContext);
+app.use('/tenant/:tenantSlug/api', addTenantContext);
 
 // Add diagnostic endpoints
 const diagnosticsEndpoints = require('./diagnostics-endpoints');
@@ -239,7 +240,7 @@ const activityLogRoutes = require('./routes/activity-logs');
 const adminRoutes = require('./routes/admin');
 app.use('/', adminRoutes);
 
-// API Routes
+// API Routes - Default (no tenant prefix)
 // Authentication routes (no auth required)
 app.use('/api/auth', authRoutes);
 // User management routes (auth required)
@@ -262,6 +263,26 @@ app.use('/api/branding', brandingRoutes);
 app.use('/api/pdf', pdfHtmlRoutes); // New HTML-based PDF generation
 app.use('/api/pdf-legacy', pdfRoutes); // Legacy PDFKit-based generation
 app.use('/api/activity-logs', activityLogRoutes); // Activity logging for managers
+
+// Tenant-prefixed API Routes - Support /tenant/{slug}/api/... pattern
+app.use('/tenant/:tenantSlug/api/auth', authRoutes);
+app.use('/tenant/:tenantSlug/api/users', userRoutes);
+app.use('/tenant/:tenantSlug/api/projects', projectRoutes);
+app.use('/tenant/:tenantSlug/api/projects/:projectId', projectScopedRoutes);
+app.use('/tenant/:tenantSlug/api/clients', clientRoutes);
+app.use('/tenant/:tenantSlug/api/invoices', invoiceRoutes);
+app.use('/tenant/:tenantSlug/api/team', teamRoutes);
+app.use('/tenant/:tenantSlug/api/milestones', milestoneRoutes);
+app.use('/tenant/:tenantSlug/api/milestone-files', milestoneFileRoutes);
+app.use('/tenant/:tenantSlug/api/approvals', approvalRoutes);
+app.use('/tenant/:tenantSlug/api/variations', variationRoutes);
+app.use('/tenant/:tenantSlug/api/variations', require('./routes/variation-files'));
+app.use('/tenant/:tenantSlug/api/tickets', ticketRoutes);
+app.use('/tenant/:tenantSlug/api/files', upload.array('files', 10), fileRoutes);
+app.use('/tenant/:tenantSlug/api/branding', brandingRoutes);
+app.use('/tenant/:tenantSlug/api/pdf', pdfHtmlRoutes);
+app.use('/tenant/:tenantSlug/api/pdf-legacy', pdfRoutes);
+app.use('/tenant/:tenantSlug/api/activity-logs', activityLogRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
