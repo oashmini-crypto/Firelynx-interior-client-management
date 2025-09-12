@@ -1,0 +1,137 @@
+You are Replit Agent. I’ve uploaded an existing monorepo called FireLynx (React 18 + Redux Toolkit + React Query frontend; Express.js backend with security middleware; PostgreSQL + Drizzle ORM; Sharp for images; PDF generation). It’s a project-centric CRM for interior design studios with manager/client portals, milestones, files, invoices (INV-YYYY-####), variation requests (VR-YYYY-####), tickets, notifications, and 14 core tables.
+
+Goal: Convert this app into a multi-tenant SaaS hosted on a Replit Reserved VM, where I can create a company (tenant) at any time and issue a per-company ADMIN account. Each tenant must see only its own data (enforced at the DB level). Keep all existing features intact.
+
+Do this end-to-end:
+
+Codebase discovery
+
+Scan the repo, list key folders/files for: backend routes/controllers, Drizzle schema and migrations, auth/session code, file uploads, PDF generation, notifications, and the manager/client portals.
+
+Output a short inventory so I can verify.
+
+Tenancy model
+
+Add tenants table: { id (uuid pk), name, slug (unique), custom_domain?, created_at }.
+
+Add tenant_id uuid not null to all project-scoped tables (projects, files, invoices, variations, tickets, messages, activity logs, etc.). Leave global tables (e.g., feature flags) alone.
+
+Write Drizzle migration(s) that are idempotent and safe on existing data (backfill tenant_id for current rows using a “default tenant” you create).
+
+Row-Level Security (RLS)
+
+Enable RLS on every tenant-scoped table.
+
+Add policies so reads/writes only allow rows where tenant_id = current_setting('app.tenant_id')::uuid.
+
+Create a generic helper migration to add RLS + policies for each table.
+
+Request-scoped tenant context
+
+Backend middleware tenantResolver that:
+
+Resolves tenant by subdomain (e.g., acme.firelynx.app) or path prefix /t/:slug as fallback.
+
+Starts a short transaction and executes SET LOCAL app.tenant_id = <tenant.uuid> per request.
+
+Provide a withTenant(tx => …) helper so all queries run inside that context with Drizzle.
+
+Auth & roles
+
+Ensure sessions/JWTs bind user to a single tenant_id. Roles: ADMIN | MANAGER | DESIGNER | CLIENT.
+
+Harden login so cross-tenant access is impossible even if a user guesses IDs.
+
+Update middleware/guards to check both role and tenant.
+
+Per-tenant document numbering
+
+Create doc_counters(tenant_id, doc_type, year, last_value) and an SQL function next_doc_no('invoice'|'variation') that returns INV-YYYY-#### or VR-YYYY-####, resetting yearly per tenant.
+
+Update invoice/variation creation to call this atomically (within the same withTenant transaction).
+
+File storage
+
+Add S3/R2 support with key prefix tenantSlug/.... Keep local disk as a fallback for dev.
+
+Replace public file routes with signed URLs (time-limited), preserving existing thumbnail pipeline (Sharp).
+
+Ensure visibility (client-visible vs internal) still applies per tenant.
+
+Provisioning
+
+Add a CLI script and an admin page: Create Tenant → creates tenant, seeds default roles/permissions, initializes doc counters, and creates the company ADMIN (email + password).
+
+Output the generated login URL (subdomain or /t/:slug) after creation.
+
+Frontend updates
+
+Add tenant-aware routing: prefer subdomain; fallback is /t/:slug.
+
+Ensure React Query keys include tenant context to avoid cross-cache leakage.
+
+Gate manager vs client portal views by role; keep UX exactly as is otherwise.
+
+Env & config
+
+Add .env vars: DATABASE_URL, SESSION_SECRET, TENANCY_MODE=single|multi, DEFAULT_TENANT_SLUG, WILDCARD_DOMAIN, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, FILE_STORAGE=s3|local.
+
+Provide Replit VM setup steps (install, build, run), and instructions to attach *.firelynx.app wildcard domain.
+
+Tests & acceptance
+
+Seed two tenants: acme and bravo, each with sample data.
+
+Prove RLS: authenticated acme user cannot list bravo projects/files/invoices (should return zero; direct SQL should also be blocked).
+
+Exercise: create two invoices in acme and confirm formats INV-<this year>-0001/0002; bravo counter starts at 0001.
+
+Migration safety & docs
+
+Generate Drizzle migrations (TS + SQL) and a README_SaaS.md with:
+
+What changed, how to run migrations, how to create first tenant/admin, how to switch to subdomains, and how to set up S3/R2.
+
+Rollback/backup notes.
+
+Deployment on Replit Reserved VM
+
+Add a Procfile/start script, healthcheck route /healthz, and Replit Nix/Build steps if needed.
+
+Provide exact shell commands to run: pnpm install, pnpm build, pnpm drizzle:push, pnpm start.
+
+Document how to set Replit Secrets for all required env vars.
+
+Constraints & style:
+
+Preserve all current features and API contracts unless explicitly stated.
+
+Keep code idiomatic to the repo (Drizzle style, existing folder structure).
+
+Don’t break single-tenant dev: if TENANCY_MODE=single, auto-use DEFAULT_TENANT_SLUG and skip subdomain requirement.
+
+Write clean, commented code and small PR-sized commits.
+
+Deliverables:
+
+Short repo inventory.
+
+New Drizzle schema + migrations (TS + emitted SQL).
+
+tenantResolver middleware and usage examples in routes.
+
+Updated services/controllers to use withTenant.
+
+Auth updates for tenant-bound sessions.
+
+doc_counters + next_doc_no and integrated invoice/variation flows.
+
+S3/R2 file adapter with signed URLs + local fallback.
+
+CLI script + Admin UI page for Create Tenant.
+
+.env.sample with all new vars.
+
+README_SaaS.md with runbooks.
+
+Replit VM deploy instructions and domain notes.

@@ -38,11 +38,30 @@ const db = drizzle(pool);
 
 // Using varchar for enum-like values instead of pgEnum for compatibility
 
+// Tenants table - Core entity for multi-tenant architecture
+const tenants = pgTable('tenants', {
+  id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  subdomain: varchar('subdomain', { length: 100 }).notNull().unique(),
+  customDomain: varchar('custom_domain', { length: 255 }),
+  status: varchar('status', { length: 20 }).notNull().default('active'), // active, inactive, suspended
+  settings: json('settings').default('{}'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => ({
+  // Performance indexes for tenant resolution
+  slugIdx: index('tenants_slug_idx').on(table.slug),
+  subdomainIdx: index('tenants_subdomain_idx').on(table.subdomain),
+  statusIdx: index('tenants_status_idx').on(table.status),
+}));
+
 // Core Tables
 const clients = pgTable('clients', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 50 }),
   company: varchar('company', { length: 255 }),
   address: text('address'),
@@ -52,14 +71,16 @@ const clients = pgTable('clients', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for client queries
+  tenantIdIdx: index('clients_tenant_id_idx').on(table.tenantId),
   statusIdx: index('clients_status_idx').on(table.status),
   emailIdx: index('clients_email_idx').on(table.email),
 }));
 
 const users = pgTable('users', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull(),
   phone: varchar('phone', { length: 50 }),
   role: varchar('role', { length: 50 }).notNull(),
   specialization: varchar('specialization', { length: 255 }),
@@ -87,6 +108,7 @@ const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for authentication and queries
+  tenantIdIdx: index('users_tenant_id_idx').on(table.tenantId),
   emailIdx: index('users_email_idx').on(table.email),
   statusIdx: index('users_status_idx').on(table.status),
   clientIdIdx: index('users_client_id_idx').on(table.clientId),
@@ -97,6 +119,7 @@ const users = pgTable('users', {
 
 const projects = pgTable('projects', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   clientId: varchar('client_id', { length: 50 }).references(() => clients.id, { onDelete: 'restrict' }).notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
@@ -112,6 +135,7 @@ const projects = pgTable('projects', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for frequently queried columns
+  tenantIdIdx: index('projects_tenant_id_idx').on(table.tenantId),
   clientIdIdx: index('projects_client_id_idx').on(table.clientId),
   statusIdx: index('projects_status_idx').on(table.status),
   createdAtIdx: index('projects_created_at_idx').on(table.createdAt),
@@ -119,6 +143,7 @@ const projects = pgTable('projects', {
 
 const projectTeam = pgTable('project_team', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   userId: varchar('user_id', { length: 50 }).references(() => users.id, { onDelete: 'cascade' }).notNull(),
   role: varchar('role', { length: 100 }).notNull(),
@@ -133,6 +158,7 @@ const projectTeam = pgTable('project_team', {
 
 const milestones = pgTable('milestones', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
@@ -144,6 +170,7 @@ const milestones = pgTable('milestones', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for project-scoped queries
+  tenantIdIdx: index('milestones_tenant_id_idx').on(table.tenantId),
   projectIdIdx: index('milestones_project_id_idx').on(table.projectId),
   statusIdx: index('milestones_status_idx').on(table.status),
   expectedDateIdx: index('milestones_expected_date_idx').on(table.expectedDate),
@@ -151,6 +178,7 @@ const milestones = pgTable('milestones', {
 
 const fileAssets = pgTable('file_assets', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   milestoneId: varchar('milestone_id', { length: 50 }).references(() => milestones.id, { onDelete: 'set null' }),
   ticketId: varchar('ticket_id', { length: 50 }),
@@ -165,6 +193,7 @@ const fileAssets = pgTable('file_assets', {
   createdAt: timestamp('created_at').defaultNow()
 }, (table) => ({
   // Performance indexes for project-scoped file queries
+  tenantIdIdx: index('file_assets_tenant_id_idx').on(table.tenantId),
   projectIdIdx: index('file_assets_project_id_idx').on(table.projectId),
   milestoneIdIdx: index('file_assets_milestone_id_idx').on(table.milestoneId),
   visibilityIdx: index('file_assets_visibility_idx').on(table.visibility),
@@ -174,6 +203,7 @@ const fileAssets = pgTable('file_assets', {
 
 const milestoneFiles = pgTable('milestone_files', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   milestoneId: varchar('milestone_id', { length: 50 }).references(() => milestones.id).notNull(),
   uploadedBy: varchar('uploaded_by', { length: 50 }).references(() => users.id).notNull(),
@@ -190,6 +220,7 @@ const milestoneFiles = pgTable('milestone_files', {
 
 const invoices = pgTable('invoices', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   issueDate: timestamp('issue_date').notNull(),
@@ -207,6 +238,7 @@ const invoices = pgTable('invoices', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for project-scoped invoice queries
+  tenantIdIdx: index('invoices_tenant_id_idx').on(table.tenantId),
   projectIdIdx: index('invoices_project_id_idx').on(table.projectId),
   statusIdx: index('invoices_status_idx').on(table.status),
   numberIdx: index('invoices_number_idx').on(table.number),
@@ -216,6 +248,7 @@ const invoices = pgTable('invoices', {
 
 const approvalPackets = pgTable('approval_packets', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   title: varchar('title', { length: 255 }).notNull(),
@@ -232,6 +265,7 @@ const approvalPackets = pgTable('approval_packets', {
 
 const approvalItems = pgTable('approval_items', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   packetId: varchar('packet_id', { length: 50 }).references(() => approvalPackets.id).notNull(),
   fileAssetId: varchar('file_asset_id', { length: 50 }).references(() => fileAssets.id).notNull(),
   decision: varchar('decision', { length: 50 }).default('Pending'),
@@ -241,6 +275,7 @@ const approvalItems = pgTable('approval_items', {
 
 const approvalFiles = pgTable('approval_files', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   approvalId: varchar('approval_id', { length: 50 }).references(() => approvalPackets.id).notNull(),
   uploadedBy: varchar('uploaded_by', { length: 50 }).references(() => users.id).notNull(),
@@ -257,6 +292,7 @@ const approvalFiles = pgTable('approval_files', {
 
 const variationRequests = pgTable('variation_requests', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   date: timestamp('date').notNull(),
@@ -292,6 +328,7 @@ const variationRequests = pgTable('variation_requests', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for project-scoped variation queries
+  tenantIdIdx: index('variations_tenant_id_idx').on(table.tenantId),
   projectIdIdx: index('variations_project_id_idx').on(table.projectId),
   statusIdx: index('variations_status_idx').on(table.status),
   numberIdx: index('variations_number_idx').on(table.number),
@@ -301,6 +338,7 @@ const variationRequests = pgTable('variation_requests', {
 
 const variationFiles = pgTable('variation_files', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id).notNull(),
   variationId: varchar('variation_id', { length: 50 }).references(() => variationRequests.id).notNull(),
   uploadedBy: varchar('uploaded_by', { length: 50 }).references(() => users.id).notNull(),
@@ -317,6 +355,7 @@ const variationFiles = pgTable('variation_files', {
 
 const tickets = pgTable('tickets', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   number: varchar('number', { length: 50 }).notNull().unique(),
   subject: varchar('subject', { length: 255 }).notNull(),
@@ -331,6 +370,7 @@ const tickets = pgTable('tickets', {
   updatedAt: timestamp('updated_at').defaultNow()
 }, (table) => ({
   // Performance indexes for project-scoped ticket queries
+  tenantIdIdx: index('tickets_tenant_id_idx').on(table.tenantId),
   projectIdIdx: index('tickets_project_id_idx').on(table.projectId),
   statusIdx: index('tickets_status_idx').on(table.status),
   priorityIdx: index('tickets_priority_idx').on(table.priority),
@@ -342,6 +382,7 @@ const tickets = pgTable('tickets', {
 
 const brandingSettings = pgTable('branding_settings', {
   id: varchar('id', { length: 50 }).primaryKey(),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   appName: varchar('app_name', { length: 100 }).notNull().default('FireLynx'),
   logoUrl: varchar('logo_url', { length: 500 }),
   accentColor: varchar('accent_color', { length: 7 }).notNull().default('#4C6FFF'),
@@ -376,6 +417,7 @@ const documentCounters = pgTable('document_counters', {
 // Activity logs table for tracking all manager actions
 const activityLogs = pgTable('activity_logs', {
   id: varchar('id', { length: 50 }).primaryKey().$default(() => crypto.randomUUID()),
+  tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   projectId: varchar('project_id', { length: 50 }).references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   userId: varchar('user_id', { length: 50 }).references(() => users.id, { onDelete: 'restrict' }).notNull(),
   actionType: varchar('action_type', { length: 100 }).notNull(), // file_upload, approval_created, variation_created, etc.
