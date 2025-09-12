@@ -179,21 +179,54 @@ const requireManagerOrAdmin = requireRole('admin', 'manager');
 // Staff authorization (admin, manager, designer)
 const requireStaff = requireRole('admin', 'manager', 'designer');
 
-// TEMPORARY: Tenant context middleware for multi-tenant conversion
-// Forces default tenant ID until subdomain/path-based tenant resolution is implemented
-const addTenantContext = (req, res, next) => {
-  // Default tenant ID (will be replaced with proper tenant resolution)
-  const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-  
-  // Add tenant context to all requests
-  req.tenantId = DEFAULT_TENANT_ID;
-  
-  // Also add to user object if it exists
-  if (req.user) {
-    req.user.tenantId = DEFAULT_TENANT_ID;
+// PHASE 2: Dynamic tenant resolution middleware
+// Resolves tenant from subdomain, path, or header
+const TenantService = require('../services/tenantService');
+
+const addTenantContext = async (req, res, next) => {
+  try {
+    // Dynamic tenant resolution from subdomains/paths
+    const tenant = await TenantService.resolveTenantFromRequest(req);
+    
+    // Add tenant context to request
+    req.tenantId = tenant.id;
+    req.tenant = tenant;
+    
+    // Also add to user object if it exists
+    if (req.user) {
+      req.user.tenantId = tenant.id;
+      req.user.tenant = tenant;
+    }
+    
+    console.log(`🏢 Tenant Context: ${tenant.name} (${tenant.slug}) -> ${tenant.id}`);
+    
+    next();
+  } catch (error) {
+    console.error('❌ Tenant Context Error:', error.message);
+    
+    // Return more specific error messages
+    if (error.message.includes('Tenant not found')) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Tenant not found',
+        details: error.message
+      });
+    }
+    
+    if (error.message.includes('not active')) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Tenant access denied',
+        details: error.message
+      });
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to establish tenant context',
+      details: error.message
+    });
   }
-  
-  next();
 };
 
 module.exports = {
