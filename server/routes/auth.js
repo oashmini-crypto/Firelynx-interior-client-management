@@ -5,13 +5,19 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { db, users, clients } = require('../database');
-const { eq, and } = require('drizzle-orm');
+const { db, users, clients, tenants } = require('../database');
+const { eq, and, or } = require('drizzle-orm');
 
 const router = express.Router();
 
 // JWT Secret (in production, this should be in environment variables)
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+// JWT secrets are required from environment - no fallbacks for security
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
 
 // Helper function to generate tokens
@@ -526,6 +532,183 @@ router.get('/me', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Internal server error'
+    });
+  }
+});
+
+// POST /api/auth/signup - Tenant and admin user registration  
+router.post('/signup', async (req, res) => {
+  console.log('📝 POST /api/auth/signup - New tenant signup');
+  
+  try {
+    const { 
+      companyName,
+      subdomain,
+      adminName, 
+      adminEmail,
+      adminPassword
+    } = req.body;
+
+    // Validation
+    if (!companyName || !subdomain || !adminName || !adminEmail || !adminPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'All fields are required: companyName, subdomain, adminName, adminEmail, adminPassword'
+      });
+    }
+
+    if (adminPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Validate subdomain format (alphanumeric, lowercase, hyphens allowed)
+    const subdomainRegex = /^[a-z0-9-]+$/;
+    if (!subdomainRegex.test(subdomain) || subdomain.length < 2 || subdomain.length > 50) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subdomain must be 2-50 characters, lowercase letters, numbers, and hyphens only'
+      });
+    }
+
+    // Reserved subdomains
+    const reservedSubdomains = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'blog', 'help', 'support'];
+    if (reservedSubdomains.includes(subdomain)) {
+      return res.status(400).json({
+        success: false,
+        error: 'This subdomain is reserved. Please choose a different one.'
+      });
+    }
+
+    // Check if subdomain or email already exists
+    const existingTenant = await db
+      .select()
+      .from(tenants)
+      .where(or(eq(tenants.subdomain, subdomain), eq(tenants.slug, subdomain)))
+      .limit(1);
+    
+    if (existingTenant.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Subdomain already taken. Please choose a different one.'
+      });
+    }
+
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, adminEmail.toLowerCase()))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Email address already registered. Please use a different email or try logging in.'
+      });
+    }
+
+    // Create tenant and admin user in atomic transaction
+    const tenantId = `tenant-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(adminPassword, saltRounds);
+
+    // Atomic transaction to create both tenant and admin user
+    await db.transaction(async (tx) => {
+      // Create tenant
+      await tx.insert(tenants).values({
+        id: tenantId,
+        name: companyName,
+        slug: subdomain,
+        subdomain: subdomain,
+        status: 'active',
+        settings: {
+          allowedDomains: [`${subdomain}.firelynx.com`],
+          features: ['projects', 'invoicing', 'files', 'tickets']
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Create admin user
+      await tx.insert(users).values({
+        id: userId,
+        tenantId: tenantId,
+        name: adminName,
+        email: adminEmail.toLowerCase(),
+        role: 'Admin',
+        specialization: 'Administrator',
+        status: 'active',
+        passwordHash: hashedPassword,
+        emailVerifiedAt: new Date(), // Auto-verify for now
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    });
+
+    console.log(`🎉 New tenant created: ${companyName} (${subdomain}) with admin: ${adminEmail}`);
+
+    // Generate login tokens immediately
+    const { accessToken, refreshToken } = generateTokens(userId, adminEmail.toLowerCase(), 'Admin');
+    
+    // Set HTTP-only cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+    
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully! You are now logged in.',
+      tenant: {
+        id: tenantId,
+        name: companyName,
+        subdomain: subdomain,
+        url: `https://${subdomain}.firelynx.com`
+      },
+      user: {
+        id: userId,
+        name: adminName,
+        email: adminEmail.toLowerCase(),
+        role: 'Admin'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Signup error:', error);
+    
+    // Handle specific database constraint errors  
+    if (error.code === '23505') { // Unique constraint violation
+      if (error.detail?.includes('subdomain') || error.detail?.includes('slug')) {
+        return res.status(409).json({
+          success: false,
+          error: 'Subdomain already taken. Please choose a different one.'
+        });
+      }
+      if (error.detail?.includes('email')) {
+        return res.status(409).json({
+          success: false,
+          error: 'Email address already registered.'
+        });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Account creation failed. Please try again.'
     });
   }
 });

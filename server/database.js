@@ -80,7 +80,7 @@ const users = pgTable('users', {
   id: varchar('id', { length: 50 }).primaryKey(),
   tenantId: varchar('tenant_id', { length: 50 }).references(() => tenants.id, { onDelete: 'restrict' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
   phone: varchar('phone', { length: 50 }),
   role: varchar('role', { length: 50 }).notNull(),
   specialization: varchar('specialization', { length: 255 }),
