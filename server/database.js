@@ -456,6 +456,7 @@ module.exports = {
   pool,
   initializeDatabase,
   // Export all tables for use in routes
+  tenants,
   clients,
   users,
   projects,

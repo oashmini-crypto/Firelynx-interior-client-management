@@ -34,6 +34,7 @@ const authenticateToken = async (req, res, next) => {
     const user = await db
       .select({
         id: users.id,
+        tenantId: users.tenantId,
         email: users.email,
         role: users.role,
         status: users.status,
@@ -71,6 +72,7 @@ const authenticateToken = async (req, res, next) => {
     // Add user info to request object
     req.user = {
       userId: foundUser.id,
+      tenantId: foundUser.tenantId,
       email: foundUser.email,
       role: foundUser.role
     };
@@ -125,6 +127,7 @@ const optionalAuth = async (req, res, next) => {
     const user = await db
       .select({
         id: users.id,
+        tenantId: users.tenantId,
         email: users.email,
         role: users.role,
         status: users.status
@@ -136,6 +139,7 @@ const optionalAuth = async (req, res, next) => {
     if (user.length > 0 && user[0].status === 'active') {
       req.user = {
         userId: user[0].id,
+        tenantId: user[0].tenantId,
         email: user[0].email,
         role: user[0].role
       };
@@ -188,17 +192,31 @@ const addTenantContext = async (req, res, next) => {
     // Dynamic tenant resolution from subdomains/paths
     const tenant = await TenantService.resolveTenantFromRequest(req);
     
+    // CRITICAL SECURITY: Validate user belongs to the requested tenant
+    if (req.user) {
+      // Get the user's actual tenant from database (set during authentication)
+      const userActualTenantId = req.user.tenantId;
+      
+      // Verify the user belongs to the requested tenant
+      if (userActualTenantId !== tenant.id) {
+        console.error(`🚨 SECURITY VIOLATION: User ${req.user.email} (tenant: ${userActualTenantId}) attempted to access tenant ${tenant.id} (${tenant.slug})`);
+        
+        return res.status(403).json({ 
+          success: false, 
+          error: 'Unauthorized tenant access',
+          details: 'You do not have permission to access this tenant\'s data'
+        });
+      }
+      
+      // User is authorized - add resolved tenant details to user object
+      req.user.tenant = tenant;
+    }
+    
     // Add tenant context to request
     req.tenantId = tenant.id;
     req.tenant = tenant;
     
-    // Also add to user object if it exists
-    if (req.user) {
-      req.user.tenantId = tenant.id;
-      req.user.tenant = tenant;
-    }
-    
-    console.log(`🏢 Tenant Context: ${tenant.name} (${tenant.slug}) -> ${tenant.id}`);
+    console.log(`🏢 Tenant Context: ${tenant.name} (${tenant.slug}) -> ${tenant.id}${req.user ? ` | User: ${req.user.email}` : ' | No user'}`);
     
     next();
   } catch (error) {
