@@ -89,6 +89,7 @@ router.get('/', async (req, res) => {
       .from(tickets)
       .leftJoin(users, eq(tickets.requesterUserId, users.id))
       .leftJoin(assigneeUserAlias, eq(tickets.assigneeUserId, assigneeUserAlias.id))
+      .where(eq(tickets.tenantId, req.tenantId))
       .orderBy(desc(tickets.createdAt));
     
     res.json({

@@ -92,6 +92,7 @@ router.get('/', async (req, res) => {
       })
       .from(projects)
       .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(eq(projects.tenantId, req.tenantId))
       .orderBy(desc(projects.createdAt));
     
     if (process.env.NODE_ENV === 'development') {
